@@ -34,23 +34,20 @@ function App() {
     const [selected, setSelected] = useState(null);
     const [time, setTime] = useState(60);
 
-    // ESSAY
     const [essay, setEssay] = useState("");
-    const [essayTime, setEssayTime] = useState(600); // 10 phút
+    const [essayTime, setEssayTime] = useState(600);
 
     const [violationReason, setViolationReason] = useState("");
 
     /* ================= GIAN LẬN ================= */
     function violation(reason) {
-        if (stage !== "EXAM") return;
+        if (stage !== "EXAM" && stage !== "ESSAY") return;
 
         fetch("/api/violation", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name, reason })
         });
-
-        localStorage.setItem("done_" + name, "1");
 
         if (document.fullscreenElement) {
             document.exitFullscreen();
@@ -60,13 +57,13 @@ function App() {
         setStage("VIOLATION");
     }
 
-    /* ================= ANTI CHEAT (CHỈ TRẮC NGHIỆM) ================= */
+    /* ================= ANTI CHEAT ================= */
     useEffect(() => {
-        if (stage !== "EXAM") return;
+        if (stage !== "EXAM" && stage !== "ESSAY") return;
 
-        const onBlur = () => violation("Mất focus trình duyệt");
+        const onBlur = () => violation("Thoát khỏi cửa sổ trình duyệt");
         const onVis = () => document.hidden && violation("Chuyển tab");
-        const onFs  = () => !document.fullscreenElement && violation("Thoát fullscreen");
+        const onFs = () => !document.fullscreenElement && violation("Thoát fullscreen");
 
         window.addEventListener("blur", onBlur);
         document.addEventListener("visibilitychange", onVis);
@@ -82,12 +79,10 @@ function App() {
     /* ================= TIMER TRẮC NGHIỆM ================= */
     useEffect(() => {
         if (stage !== "EXAM") return;
-
         if (time <= 0) {
             next();
             return;
         }
-
         const t = setTimeout(() => setTime(time - 1), 1000);
         return () => clearTimeout(t);
     }, [time, stage]);
@@ -95,30 +90,17 @@ function App() {
     /* ================= TIMER TỰ LUẬN ================= */
     useEffect(() => {
         if (stage !== "ESSAY") return;
-
         if (essayTime <= 0) {
             submitEssay();
             return;
         }
-
         const t = setTimeout(() => setEssayTime(essayTime - 1), 1000);
         return () => clearTimeout(t);
     }, [essayTime, stage]);
 
     /* ================= JOIN ================= */
     async function join() {
-        if (!name.trim()) {
-            alert("Vui lòng nhập họ tên");
-            return;
-        }
-
-        if (localStorage.getItem("done_" + name)) {
-            if (!window.confirm("Tên này đã thi trước đó. Thi lại?")) {
-                setStage("SUBMITTED");
-                return;
-            }
-            localStorage.removeItem("done_" + name);
-        }
+        if (!name) return alert("Nhập họ tên");
 
         await fetch("/api/join", {
             method: "POST",
@@ -141,56 +123,34 @@ function App() {
         const res = await fetch("/api/questions?name=" + encodeURIComponent(name));
         const data = await res.json();
 
-        if (!Array.isArray(data)) {
-            alert("Kỳ thi chưa bắt đầu hoặc bạn đã thi rồi");
-            setStage("WAIT");
+        if (!Array.isArray(data) || data.length === 0) {
+            setStage("SUBMITTED");
             return;
         }
 
         setQuestions(data);
-        setIndex(0);
-        setAnswers([]);
-        setSelected(null);
-        setTime(60);
         setStage("EXAM");
-
         document.documentElement.requestFullscreen();
     }
 
-    /* ================= CHUYỂN CÂU ================= */
-    async function next() {
-        const a = [...answers];
-        a[index] = selected;
+    /* ================= NỘP TRẮC NGHIỆM ================= */
+    async function submitMC(a) {
+        await fetch("/api/submit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, answers: a })
+        });
 
-        setAnswers(a);
-        setSelected(null);
-
-        if (index + 1 >= questions.length) {
-            // NỘP TRẮC NGHIỆM – CHƯA KẾT THÚC
-            await fetch("/api/submit", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, answers: a })
-            });
-
-            setStage("ESSAY");
-            setEssayTime(600);
-            return;
-        }
-
-        setIndex(index + 1);
-        setTime(60);
+        setStage("ESSAY");
+        setEssayTime(600);
     }
 
-    /* ================= SUBMIT ESSAY ================= */
     async function submitEssay() {
         await fetch("/api/submit-essay", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name, essay })
         });
-
-        localStorage.setItem("done_" + name, "1");
 
         if (document.fullscreenElement) {
             document.exitFullscreen();
@@ -199,14 +159,27 @@ function App() {
         setStage("SUBMITTED");
     }
 
-    /* ================= CLICK CANVAS ================= */
+    function next() {
+        const a = [...answers];
+        a[index] = selected;
+        setAnswers(a);
+        setSelected(null);
+        setIndex(index + 1);
+        setTime(60);
+
+        if (index + 1 >= questions.length) {
+            submitMC(a);
+        }
+    }
+
+    /* ================= CLICK ================= */
     function click(e) {
         if (stage !== "EXAM") return;
 
         const x = e.nativeEvent.offsetX;
         const y = e.nativeEvent.offsetY;
 
-        for (let b of answerBoxes.current) {
+        for (const b of answerBoxes.current) {
             if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
                 setSelected(b.index);
                 return;
@@ -218,179 +191,95 @@ function App() {
         }
     }
 
-    /* ================= RENDER CANVAS ================= */
+    /* ================= VẼ CANVAS ================= */
     useEffect(() => {
         if (stage !== "EXAM") return;
         if (!questions[index]) return;
 
         const canvas = canvasRef.current;
         if (!canvas) return;
-
         const ctx = canvas.getContext("2d");
+
         answerBoxes.current = [];
-
         ctx.clearRect(0, 0, 900, 540);
-        ctx.fillStyle = "#f8fafc";
-        ctx.fillRect(0, 0, 900, 540);
 
-        ctx.fillStyle = "#0f172a";
-        ctx.fillRect(0, 0, 900, 60);
-        ctx.fillStyle = "#fff";
-        ctx.font = "18px Arial";
-        ctx.fillText(`Câu ${index + 1}/${questions.length}`, 20, 38);
-        ctx.fillText(`⏱ ${time}s`, 780, 38);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, 900, 540);
 
         ctx.fillStyle = "#000";
         ctx.font = "20px Arial";
-        let yEnd = drawWrap(ctx, questions[index].q, 40, 100, 820, 28);
 
-        let y = yEnd + 40;
-        for (let i = 0; i < questions[index].choices.length; i++) {
-            ctx.strokeStyle = "#334155";
-            ctx.strokeRect(40, y, 820, 46);
+        ctx.fillText(`Câu ${index + 1}/${questions.length} – ${time}s`, 30, 40);
 
+        let yEnd = drawWrap(ctx, questions[index].q, 30, 90, 840, 28);
+
+        let y = yEnd + 30;
+
+        questions[index].choices.forEach((c, i) => {
+            const h = 50;
+            ctx.strokeRect(30, y, 840, h);
             if (selected === i) {
                 ctx.fillStyle = "#2563eb22";
-                ctx.fillRect(40, y, 820, 46);
+                ctx.fillRect(30, y, 840, h);
             }
-
             ctx.fillStyle = "#000";
-            ctx.font = "18px Arial";
-            drawWrap(ctx, `${String.fromCharCode(65+i)}. ${questions[index].choices[i]}`, 50, y+30, 780, 22);
+            drawWrap(ctx, String.fromCharCode(65 + i) + ". " + c, 40, y + 30, 800, 22);
 
-            answerBoxes.current.push({ x:40, y, w:820, h:46, index:i });
+            answerBoxes.current.push({ x: 30, y, w: 840, h, index: i });
             y += 70;
-        }
+        });
 
-        ctx.fillStyle = selected !== null ? "#2563eb" : "#94a3b8";
+        ctx.fillStyle = selected !== null ? "#2563eb" : "#aaa";
         ctx.fillRect(650, 470, 200, 50);
         ctx.fillStyle = "#fff";
         ctx.fillText("CÂU TIẾP THEO", 690, 502);
-
     }, [stage, index, selected, time]);
 
     /* ================= UI ================= */
     if (stage === "LOGIN")
         return (
-            <div style={{ padding:40 }}>
+            <div style={{ padding: 40 }}>
                 <h1>THI ONLINE</h1>
-                <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nhập họ tên"/>
-                <br/><br/>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="Nhập họ tên" />
+                <br /><br />
                 <button onClick={join}>XÁC NHẬN</button>
             </div>
         );
 
     if (stage === "WAIT")
-        return <h2 style={{ padding:40 }}>⏳ Đang chờ FTO mở đề...</h2>;
+        return <h2 style={{ padding: 40 }}>⏳ Đang chờ FTO mở đề...</h2>;
 
-    if (stage === "ESSAY") {
-    return (
-        <div
-            style={{
-                minHeight: "100vh",
-                background: "#020617",
-                color: "#fff",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "flex-start",
-                paddingTop: 40
-            }}
-        >
-            <div
-                style={{
-                    width: "100%",
-                    maxWidth: 900,
-                    background: "#020617",
-                    padding: 24,
-                    boxSizing: "border-box"
-                }}
-            >
-                <h2 style={{ marginBottom: 10 }}>📝 CÂU HỎI TỰ LUẬN</h2>
-
-                <div
-                    style={{
-                        background: "#0f172a",
-                        padding: 16,
-                        borderRadius: 8,
-                        marginBottom: 16,
-                        lineHeight: 1.6
-                    }}
-                >
-                    <p style={{ margin: 0 }}>
-                        Bạn đang trong ca trực tuần tra bắn tốc độ tại tuyến đường chính.
-                        Bạn vừa dừng một phương tiện vi phạm và đang trong quá trình kiểm tra giấy tờ.
-                        Bất ngờ, bộ đàm phát lệnh khẩn cấp:
-                        <br />
-                        <b>
-                            “Yêu cầu tất cả các sĩ quan di chuyển đến hỗ trợ”
-                        </b>.
-                        <br />
-                        Bạn sẽ xử lý tình huống này như thế nào?
-                    </p>
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                    ⏱ Thời gian còn lại:{" "}
-                    <b>
-                        {Math.floor(essayTime / 60)}:
-                        {(essayTime % 60).toString().padStart(2, "0")}
-                    </b>
-                </div>
-
+    if (stage === "ESSAY")
+        return (
+            <div style={{ padding: 40 }}>
+                <h2>📝 CÂU HỎI TỰ LUẬN (⏱ {essayTime}s)</h2>
+                <p style={{ maxWidth: 900 }}>
+                    Bạn đang trong ca trực tuần tra bắn tốc độ tại tuyến đường chính.
+                    Khi đang xử lý vi phạm thì có lệnh khẩn cấp yêu cầu hỗ trợ.
+                    Bạn sẽ xử lý tình huống này như thế nào?
+                </p>
                 <textarea
                     value={essay}
                     onChange={e => setEssay(e.target.value)}
-                    placeholder="Nhập câu trả lời của bạn tại đây..."
                     style={{
                         width: "100%",
-                        minHeight: 220,
-                        maxHeight: 400,
-                        resize: "vertical",
-                        padding: 12,
-                        fontSize: 16,
-                        lineHeight: 1.5,
-                        borderRadius: 8,
-                        border: "1px solid #334155",
-                        boxSizing: "border-box",
-                        outline: "none"
+                        maxWidth: 900,
+                        height: 220,
+                        fontSize: 16
                     }}
                 />
-
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        marginTop: 16
-                    }}
-                >
-                    <button
-                        onClick={submitEssay}
-                        style={{
-                            padding: "12px 24px",
-                            fontSize: 16,
-                            borderRadius: 8,
-                            background: "#2563eb",
-                            color: "#fff",
-                            border: "none",
-                            cursor: "pointer"
-                        }}
-                    >
-                        📤 NỘP BÀI
-                    </button>
-                </div>
+                <br /><br />
+                <button onClick={submitEssay}>NỘP BÀI</button>
             </div>
-        </div>
-    );
-}
-
+        );
 
     if (stage === "SUBMITTED")
-        return <h2 style={{ padding:40 }}>✅ Bài thi đã được nộp.<br/>Vui lòng chờ FTO công bố kết quả.</h2>;
+        return <h2 style={{ padding: 40 }}>✅ Bài thi đã nộp – vui lòng chờ kết quả</h2>;
 
     if (stage === "VIOLATION")
-        return <h2 style={{ padding:40, color:"red" }}>❌ Gian lận<br/>{violationReason}</h2>;
+        return <h2 style={{ padding: 40, color: "red" }}>❌ Bài thi bị khóa<br />{violationReason}</h2>;
 
-    return <canvas ref={canvasRef} width={900} height={540} onClick={click}/>;
+    return <canvas ref={canvasRef} width={900} height={540} onClick={click} />;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
