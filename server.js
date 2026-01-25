@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import { appendExamResult } from "./googleSheets.js";
 
 const app = express();
 const PORT = 3000;
@@ -21,15 +22,16 @@ function shuffleArray(arr) {
     return a;
 }
 
-/* ================= TRẠNG THÁI KỲ THI ================= */
+/* ================= TRẠNG THÁI ================= */
 let examStarted = false;
 
-/* ================= DATA ================= */
 const logs = [];
 const results = [];
 const activeExams = {};
+const examDetails = {};
 const finishedUsers = new Set();
-/* ================= BỘ ĐỀ ================= */
+
+/* ================= CÂU HỎI (RÚT GỌN – GIỮ NGUYÊN LOGIC) ================= */
 const QUESTION_BANK = [
   {
     q: "Theo quy định về phạm vi thẩm quyền, lực lượng nào có quyền hạn tuần tra trên tất cả các xa lộ, đường phố và có thể thực thi pháp luật ở bất kỳ nơi nào trong tiểu bang San Andreas?",
@@ -346,95 +348,152 @@ const QUESTION_PATROL = [
       "Phạt cho chừa","Yêu cầu về đồn sau"],
     answer:1 }
 ];
-
 /* ================= API ================= */
 
-// Giám khảo mở đề
-app.post("/api/exam/start",(req,res)=>{
+// FTO mở đề
+app.post("/api/exam/start", (req, res) => {
     examStarted = true;
-    logs.push({ name:"SYSTEM", type:"EXAM_START", time:new Date().toLocaleString() });
-    res.json({ok:true});
+    logs.push({
+        name: "SYSTEM",
+        type: "EXAM_START",
+        time: new Date().toLocaleString("vi-VN")
+    });
+    res.json({ ok: true });
 });
 
-// Trạng thái kỳ thi
-app.get("/api/exam/status",(req,res)=>{
+app.get("/api/exam/status", (req, res) => {
     res.json({ started: examStarted });
 });
 
-// Thí sinh vào
-app.post("/api/join",(req,res)=>{
-    logs.push({ name:req.body.name, type:"JOIN", time:new Date().toLocaleString() });
-    res.json({ok:true});
+// Thí sinh join
+app.post("/api/join", (req, res) => {
+    logs.push({
+        name: req.body.name,
+        type: "JOIN",
+        time: new Date().toLocaleString("vi-VN")
+    });
+    res.json({ ok: true });
 });
 
 // Gian lận
-app.post("/api/violation",(req,res)=>{
+app.post("/api/violation", (req, res) => {
     logs.push({
-        name:req.body.name,
-        type:"VIOLATION",
-        reason:req.body.reason,
-        time:new Date().toLocaleString()
+        name: req.body.name,
+        type: "VIOLATION",
+        reason: req.body.reason,
+        time: new Date().toLocaleString("vi-VN")
     });
     finishedUsers.add(req.body.name);
-    res.json({ok:true});
+    res.json({ ok: true });
 });
 
-// Lấy đề (2–3 câu nghiệp vụ)
-app.get("/api/questions",(req,res)=>{
-    if(!examStarted) return res.status(403).json({error:"NOT_STARTED"});
-    const name=req.query.name;
-    if(!name) return res.status(400).json({error:"NO_NAME"});
-    if(finishedUsers.has(name)) return res.status(403).json({error:"ALREADY_DONE"});
+// Lấy đề
+app.get("/api/questions", (req, res) => {
+    if (!examStarted) return res.status(403).json({ error: "NOT_STARTED" });
 
-    const patrolCount = Math.random()<0.5 ? 2 : 3;
+    const name = req.query.name;
+    if (!name) return res.status(400).json({ error: "NO_NAME" });
+    if (finishedUsers.has(name))
+        return res.status(403).json({ error: "ALREADY_DONE" });
+
+    const patrolCount = Math.random() < 0.5 ? 2 : 3;
+
     const qs = shuffleArray([
-        ...shuffleArray(QUESTION_PATROL).slice(0,patrolCount),
-        ...shuffleArray(QUESTION_BANK).slice(0,10-patrolCount)
+        ...shuffleArray(QUESTION_PATROL).slice(0, patrolCount),
+        ...shuffleArray(QUESTION_BANK).slice(0, 10 - patrolCount)
     ]);
 
-    const prepared = qs.map(q=>{
+    const prepared = qs.map(q => {
         const mix = shuffleArray(
-            q.choices.map((c,i)=>({c,ok:i===q.answer}))
+            q.choices.map((c, i) => ({ c, ok: i === q.answer }))
         );
         return {
-            q:q.q,
-            choices: mix.map(x=>x.c),
-            correct: mix.findIndex(x=>x.ok)
+            q: q.q,
+            choices: mix.map(x => x.c),
+            correct: mix.findIndex(x => x.ok)
         };
     });
 
-    activeExams[name] = prepared.map(q=>q.correct);
-    res.json(prepared.map(q=>({q:q.q,choices:q.choices})));
+    activeExams[name] = prepared.map(q => q.correct);
+    examDetails[name] = prepared.map(q => ({
+        question: q.q,
+        choices: q.choices
+    }));
+
+    res.json(prepared.map(q => ({ q: q.q, choices: q.choices })));
 });
 
-// Nộp bài
-app.post("/api/submit",(req,res)=>{
-    const {name,answers}=req.body;
-    if(finishedUsers.has(name)) return res.json({ok:true});
-
+// Nộp trắc nghiệm (CHƯA kết thúc)
+app.post("/api/submit", (req, res) => {
+    const { name, answers } = req.body;
     const corrects = activeExams[name];
-    if(!corrects) return res.status(400).json({error:"NO_EXAM"});
+    if (!corrects) return res.status(400).json({ error: "NO_EXAM" });
 
-    let score=0;
-    answers.forEach((a,i)=>{ if(a===corrects[i]) score++; });
-
-    results.push({
-        name,
-        score,
-        result: score>=8?"ĐẬU":"RỚT",
-        time:new Date().toLocaleString()
+    let score = 0;
+    answers.forEach((a, i) => {
+        if (a === corrects[i]) score++;
     });
 
-    finishedUsers.add(name);
-    delete activeExams[name];
-    res.json({ok:true});
+    activeExams[name + "_score"] = score;
+    activeExams[name + "_answers"] = answers;
+
+    res.json({ ok: true, score });
+});
+
+// Nộp tự luận + ghi Google Sheet
+// Nộp tự luận + ghi Google Sheet (CHUẨN)
+app.post("/api/submit-essay", async (req, res) => {
+    try {
+        const { name, essay } = req.body;
+        if (finishedUsers.has(name)) {
+            return res.json({ ok: true });
+        }
+
+        const score = activeExams[name + "_score"] || 0;
+        const answers = activeExams[name + "_answers"] || [];
+        const pass = score >= 8 ? "ĐẬU" : "RỚT";
+        const time = new Date().toLocaleString("vi-VN");
+
+        // Chuyển đáp án số → A/B/C/D
+        const answerLetters = [];
+        for (let i = 0; i < 10; i++) {
+            const a = answers[i];
+            if (a === undefined || a === null) {
+                answerLetters.push("");
+            } else {
+                answerLetters.push(String.fromCharCode(65 + a));
+            }
+        }
+
+        // Ghi kết quả nội bộ (dashboard)
+        results.push({ name, score, result: pass, time });
+
+        // GHI GOOGLE SHEET – KHỚP CỘT C1 → C10
+        await appendExamResult([
+            time,
+            name,
+            score,
+            pass,
+            ...answerLetters,   // C1 → C10
+            essay || ""
+        ]);
+
+        finishedUsers.add(name);
+        delete activeExams[name + "_score"];
+        delete activeExams[name + "_answers"];
+
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("❌ GHI SHEET LỖI:", err);
+        res.status(500).json({ error: "SHEET_ERROR" });
+    }
 });
 
 // Dashboard
-app.get("/api/dashboard",(req,res)=>{
-    res.json({logs,results,examStarted});
+app.get("/api/dashboard", (req, res) => {
+    res.json({ logs, results, examStarted });
 });
 
-app.listen(PORT,()=>{
-    console.log("✅ Server http://localhost:"+PORT);
+app.listen(PORT, () => {
+    console.log("✅ Server chạy tại http://localhost:" + PORT);
 });
