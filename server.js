@@ -301,6 +301,109 @@ const QUESTION_BANK = [
     answer: 1
   }
 ];
+const QUESTION_PATROL = [
+  {
+    q: "Khi tiếp cận xe nghi vấn, tại sao cảnh sát được yêu cầu đứng ở vị trí cột B?",
+    choices: [
+      "Để dễ nhìn thấy biển số phía sau",
+      "Để tránh cửa xe va vào và có góc quan sát tốt bên trong",
+      "Để đối tượng dễ thấy mặt cảnh sát",
+      "Để chuẩn bị gậy nhanh hơn"
+    ],
+    answer: 1
+  },
+  {
+    q: "Những vật dụng nào được xem là vật dụng nghi vấn cần quan sát nhanh?",
+    choices: [
+      "Sách báo, điện thoại, ví",
+      "Nước uống, đồ ăn nhanh",
+      "Vũ khí, vết máu, mặt nạ, găng tay",
+      "Giấy tờ xe, bằng lái"
+    ],
+    answer: 2
+  },
+  {
+    q: "Trước khi bước xuống xe tiếp cận đối tượng, hành động ưu tiên nhất là gì?",
+    choices: [
+      "Kiểm tra súng",
+      "Báo Radio vị trí, biển số và yêu cầu hỗ trợ",
+      "Bật loa yêu cầu giơ tay",
+      "Chỉnh bodycam"
+    ],
+    answer: 1
+  },
+  {
+    q: "Mục đích chính của câu hỏi “Anh/Chị vừa đi từ đâu tới?” là gì?",
+    choices: [
+      "Xã giao",
+      "Đối chiếu hướng di chuyển với khu vực xảy ra án",
+      "Ghi biên bản",
+      "Kiểm tra trí nhớ"
+    ],
+    answer: 1
+  },
+  {
+    q: "Câu hỏi nào khéo léo để thăm dò lý do vội vã?",
+    choices: [
+      "Tại sao anh chạy như ăn cướp?",
+      "Anh có biết chạy nhanh là vi phạm?",
+      "Có chuyện gì khiến anh/chị phải di chuyển nhanh trong khu vực đang có biến động?",
+      "Anh mang hàng cấm đúng không?"
+    ],
+    answer: 2
+  },
+  {
+    q: "Khi kiểm tra MDT/Database, thông tin nào cần chú trọng nhất?",
+    choices: [
+      "Lịch sử phạt",
+      "Tiền án tiền sự về bạo lực/vũ khí",
+      "Ngày sinh",
+      "Màu xe"
+    ],
+    answer: 1
+  },
+  {
+    q: "Lời thoại nào chuyên nghiệp nhất khi yêu cầu kiểm tra phương tiện?",
+    choices: [
+      "Tôi nghi anh là hung thủ",
+      "Vì khu vực vừa xảy ra trọng án, tôi cần kiểm tra xe để đảm bảo an toàn chung",
+      "Luật server cho phép tôi khám xe",
+      "Xuống xe ngay"
+    ],
+    answer: 1
+  },
+  {
+    q: "Nếu xe có đặc điểm trùng khớp mô tả hiện trường, bước tiếp theo là gì?",
+    choices: [
+      "Hỏi chuyện kéo dài",
+      "Lập tức khống chế và áp giải về trụ sở",
+      "Ghi biển số rồi cho đi",
+      "Gọi người thân xác minh"
+    ],
+    answer: 1
+  },
+  {
+    q: "Tài xế liên tục nhìn gương chiếu hậu thể hiện điều gì?",
+    choices: [
+      "Chỉnh gương",
+      "Lo lắng bị áp sát hoặc tìm đường tẩu thoát",
+      "Lái xe cẩn thận",
+      "Đợi người thân"
+    ],
+    answer: 1
+  },
+  {
+    q: "Nếu tài xế là nhân chứng hoảng loạn, cảnh sát cần làm gì?",
+    choices: [
+      "Cho đi ngay",
+      "Thu thập thông tin nhân chứng ngay",
+      "Phạt cho chừa",
+      "Yêu cầu tự về đồn sau"
+    ],
+    answer: 1
+  }
+];
+
 /* ================= DATA RAM ================= */
 const logs = [];
 const results = [];
@@ -354,13 +457,22 @@ app.get("/api/questions", (req, res) => {
     const name = req.query.name;
     if (!name) return res.status(400).json({ error: "Missing name" });
 
-    const selected = shuffleArray(QUESTION_BANK).slice(0, 10);
+    // 🔹 Random số câu nghiệp vụ: 2 hoặc 3
+    const patrolCount = Math.random() < 0.5 ? 2 : 3;
 
-    const prepared = selected.map(q => {
-        const indexed = q.choices.map((t, i) => ({
-            text: t,
+    const patrolQs = shuffleArray(QUESTION_PATROL).slice(0, patrolCount);
+    const normalQs = shuffleArray(QUESTION_BANK).slice(0, 10 - patrolCount);
+
+    // Gộp & trộn thứ tự câu
+    const finalQuestions = shuffleArray([...patrolQs, ...normalQs]);
+
+    // Đảo đáp án từng câu
+    const prepared = finalQuestions.map(q => {
+        const indexed = q.choices.map((text, i) => ({
+            text,
             isCorrect: i === q.answer
         }));
+
         const shuffled = shuffleArray(indexed);
 
         return {
@@ -370,13 +482,16 @@ app.get("/api/questions", (req, res) => {
         };
     });
 
+    // Lưu đáp án đúng theo thứ tự câu
     activeExams[name] = prepared.map(q => q.correct);
 
+    // Chỉ gửi câu hỏi + đáp án (không gửi correct)
     res.json(prepared.map(q => ({
         q: q.q,
         choices: q.choices
     })));
 });
+
 
 // Nộp bài
 app.post("/api/submit", (req, res) => {
