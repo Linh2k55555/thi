@@ -489,9 +489,25 @@ app.post("/api/submit-essay", async (req, res) => {
 // ===== DASHBOARD (FIX 404) =====
 app.get("/api/dashboard", (req, res) => {
     res.json({
-        started: examStarted,
-        results: dashboardResults
+        examStarted,
+        results,
+        logs
     });
+});
+
+app.post("/api/violation", (req, res) => {
+    const { name, reason } = req.body;
+
+    logs.push({
+        name,
+        type: "VIOLATION",
+        reason,
+        time: new Date().toLocaleString("vi-VN")
+    });
+
+    finishedUsers.add(name);
+
+    res.json({ ok: true });
 });
 
 /* ================= START ================= */

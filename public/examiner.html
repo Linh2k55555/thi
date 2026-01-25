@@ -66,12 +66,14 @@ async function load() {
 
         const data = await res.json();
 
+        const results = Array.isArray(data.results) ? data.results : [];
+        const logs = Array.isArray(data.logs) ? data.logs : [];
+
         if (data.examStarted) {
             startBtn.disabled = true;
             startBtn.innerText = "⏳ Kỳ thi đang diễn ra";
         }
 
-        // Kết quả
         resultsTable.innerHTML = `
             <tr>
                 <th>Họ tên</th>
@@ -79,7 +81,7 @@ async function load() {
                 <th>Kết quả</th>
                 <th>Thời gian</th>
             </tr>
-        ` + data.results.map(r => `
+        ` + results.map(r => `
             <tr>
                 <td>${r.name}</td>
                 <td>${r.score}/10</td>
@@ -90,7 +92,6 @@ async function load() {
             </tr>
         `).join("");
 
-        // Log
         logsTable.innerHTML = `
             <tr>
                 <th>Họ tên</th>
@@ -98,7 +99,7 @@ async function load() {
                 <th>Lý do</th>
                 <th>Thời gian</th>
             </tr>
-        ` + data.logs.map(l => `
+        ` + logs.map(l => `
             <tr>
                 <td>${l.name}</td>
                 <td class="danger">${l.type}</td>
@@ -111,6 +112,7 @@ async function load() {
         console.warn("⚠️ Không kết nối được server", err.message);
     }
 }
+
 
 /* ================= START EXAM ================= */
 async function startExam() {
