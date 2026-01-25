@@ -34,12 +34,13 @@ function formatMCAnswers(answers, corrects) {
 /* ================= TRẠNG THÁI ================= */
 let examStarted = false;
 
-const activeCorrects = {}; // name -> [correct index]
-const activeAnswers  = {}; // name -> [user answers]
-const activeScores   = {}; // name -> score
+const activeCorrects = {};
+const activeAnswers  = {};
+const activeScores   = {};
 const finishedUsers  = new Set();
 
-const dashboardResults = []; // cho examiner.html
+const dashboardResults = []; // cho examiner
+const logs = [];             // ❗ BẮT BUỘC
 
 /* ================= BỘ ĐỀ ================= */
 /* ================= CÂU HỎI (RÚT GỌN – GIỮ NGUYÊN LOGIC) ================= */
@@ -472,11 +473,12 @@ app.post("/api/submit-essay", async (req, res) => {
 
     // Lưu cho dashboard giám khảo
     dashboardResults.push({
-        name,
-        score,
-        result,
-        time
-    });
+    name,
+    score,
+    result,
+    time
+});
+
 
     finishedUsers.add(name);
     delete activeCorrects[name];
@@ -490,10 +492,11 @@ app.post("/api/submit-essay", async (req, res) => {
 app.get("/api/dashboard", (req, res) => {
     res.json({
         examStarted,
-        results,
+        results: dashboardResults,
         logs
     });
 });
+
 
 app.post("/api/violation", (req, res) => {
     const { name, reason } = req.body;
