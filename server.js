@@ -23,6 +23,12 @@ function shuffleArray(arr) {
 
 /* ================= TRẠNG THÁI KỲ THI ================= */
 let examStarted = false;
+
+/* ================= DATA ================= */
+const logs = [];
+const results = [];
+const activeExams = {};
+const finishedUsers = new Set();
 /* ================= BỘ ĐỀ ================= */
 const QUESTION_BANK = [
   {
@@ -301,225 +307,134 @@ const QUESTION_BANK = [
     answer: 1
   }
 ];
+/* ================= BỘ ĐỀ NGHIỆP VỤ (10 CÂU) ================= */
 const QUESTION_PATROL = [
-  {
-    q: "Khi tiếp cận xe nghi vấn, tại sao cảnh sát được yêu cầu đứng ở vị trí cột B?",
-    choices: [
-      "Để dễ nhìn thấy biển số phía sau",
-      "Để tránh cửa xe va vào và có góc quan sát tốt bên trong",
-      "Để đối tượng dễ thấy mặt cảnh sát",
-      "Để chuẩn bị gậy nhanh hơn"
-    ],
-    answer: 1
-  },
-  {
-    q: "Những vật dụng nào được xem là vật dụng nghi vấn cần quan sát nhanh?",
-    choices: [
-      "Sách báo, điện thoại, ví",
-      "Nước uống, đồ ăn nhanh",
-      "Vũ khí, vết máu, mặt nạ, găng tay",
-      "Giấy tờ xe, bằng lái"
-    ],
-    answer: 2
-  },
-  {
-    q: "Trước khi bước xuống xe tiếp cận đối tượng, hành động ưu tiên nhất là gì?",
-    choices: [
-      "Kiểm tra súng",
-      "Báo Radio vị trí, biển số và yêu cầu hỗ trợ",
-      "Bật loa yêu cầu giơ tay",
-      "Chỉnh bodycam"
-    ],
-    answer: 1
-  },
-  {
-    q: "Mục đích chính của câu hỏi “Anh/Chị vừa đi từ đâu tới?” là gì?",
-    choices: [
-      "Xã giao",
-      "Đối chiếu hướng di chuyển với khu vực xảy ra án",
-      "Ghi biên bản",
-      "Kiểm tra trí nhớ"
-    ],
-    answer: 1
-  },
-  {
-    q: "Câu hỏi nào khéo léo để thăm dò lý do vội vã?",
-    choices: [
-      "Tại sao anh chạy như ăn cướp?",
-      "Anh có biết chạy nhanh là vi phạm?",
-      "Có chuyện gì khiến anh/chị phải di chuyển nhanh trong khu vực đang có biến động?",
-      "Anh mang hàng cấm đúng không?"
-    ],
-    answer: 2
-  },
-  {
-    q: "Khi kiểm tra MDT/Database, thông tin nào cần chú trọng nhất?",
-    choices: [
-      "Lịch sử phạt",
-      "Tiền án tiền sự về bạo lực/vũ khí",
-      "Ngày sinh",
-      "Màu xe"
-    ],
-    answer: 1
-  },
-  {
-    q: "Lời thoại nào chuyên nghiệp nhất khi yêu cầu kiểm tra phương tiện?",
-    choices: [
-      "Tôi nghi anh là hung thủ",
-      "Vì khu vực vừa xảy ra trọng án, tôi cần kiểm tra xe để đảm bảo an toàn chung",
-      "Luật server cho phép tôi khám xe",
-      "Xuống xe ngay"
-    ],
-    answer: 1
-  },
-  {
-    q: "Nếu xe có đặc điểm trùng khớp mô tả hiện trường, bước tiếp theo là gì?",
-    choices: [
-      "Hỏi chuyện kéo dài",
-      "Lập tức khống chế và áp giải về trụ sở",
-      "Ghi biển số rồi cho đi",
-      "Gọi người thân xác minh"
-    ],
-    answer: 1
-  },
-  {
-    q: "Tài xế liên tục nhìn gương chiếu hậu thể hiện điều gì?",
-    choices: [
-      "Chỉnh gương",
-      "Lo lắng bị áp sát hoặc tìm đường tẩu thoát",
-      "Lái xe cẩn thận",
-      "Đợi người thân"
-    ],
-    answer: 1
-  },
-  {
-    q: "Nếu tài xế là nhân chứng hoảng loạn, cảnh sát cần làm gì?",
-    choices: [
-      "Cho đi ngay",
-      "Thu thập thông tin nhân chứng ngay",
-      "Phạt cho chừa",
-      "Yêu cầu tự về đồn sau"
-    ],
-    answer: 1
-  }
+  { q:"Khi tiếp cận xe nghi vấn, tại sao cảnh sát được yêu cầu đứng ở vị trí cột B?",
+    choices:["Nhìn biển số","Tránh cửa xe và quan sát tốt","Đối tượng thấy mặt","Chuẩn bị gậy"],
+    answer:1 },
+  { q:"Những vật dụng nào là vật dụng nghi vấn?",
+    choices:["Sách báo","Đồ ăn","Vũ khí, vết máu, mặt nạ, găng tay","Giấy tờ"],
+    answer:2 },
+  { q:"Trước khi xuống xe tiếp cận, hành động ưu tiên?",
+    choices:["Kiểm tra súng","Báo radio + yêu cầu hỗ trợ","Ra lệnh giơ tay","Chỉnh camera"],
+    answer:1 },
+  { q:"Mục đích hỏi “Anh/Chị vừa đi từ đâu tới?”",
+    choices:["Xã giao","Đối chiếu hướng di chuyển","Ghi biên bản","Kiểm tra trí nhớ"],
+    answer:1 },
+  { q:"Câu hỏi thăm dò lý do vội vã phù hợp?",
+    choices:["Chạy như ăn cướp?","Biết là vi phạm không?",
+      "Có chuyện gì khiến anh/chị phải di chuyển nhanh trong khu vực này?",
+      "Anh mang hàng cấm?"],
+    answer:2 },
+  { q:"Khi kiểm tra MDT, thông tin quan trọng nhất?",
+    choices:["Lịch sử phạt","Tiền án bạo lực/vũ khí","Ngày sinh","Màu xe"],
+    answer:1 },
+  { q:"Lời thoại chuyên nghiệp khi kiểm tra xe?",
+    choices:["Tôi nghi anh là hung thủ",
+      "Vì khu vực vừa xảy ra trọng án, tôi cần kiểm tra xe để đảm bảo an toàn",
+      "Luật server cho phép",
+      "Xuống xe ngay"],
+    answer:1 },
+  { q:"Nếu xe trùng mô tả hiện trường, bước tiếp theo?",
+    choices:["Hỏi chuyện kéo dài","Khống chế và áp giải","Ghi biển số","Gọi người thân"],
+    answer:1 },
+  { q:"Tài xế liên tục nhìn gương chiếu hậu ám chỉ?",
+    choices:["Chỉnh gương","Lo lắng bị áp sát/tẩu thoát","Lái cẩn thận","Đợi người"],
+    answer:1 },
+  { q:"Nếu tài xế là nhân chứng hoảng loạn?",
+    choices:["Cho đi ngay","Thu thập thông tin nhân chứng",
+      "Phạt cho chừa","Yêu cầu về đồn sau"],
+    answer:1 }
 ];
-
-/* ================= DATA RAM ================= */
-const logs = [];
-const results = [];
-const activeExams = {};
 
 /* ================= API ================= */
 
-// Giám khảo bấm bắt đầu thi
-app.post("/api/exam/start", (req, res) => {
+// Giám khảo mở đề
+app.post("/api/exam/start",(req,res)=>{
     examStarted = true;
-    logs.push({
-        name: "SYSTEM",
-        type: "EXAM_START",
-        time: new Date().toLocaleString()
-    });
-    res.json({ ok: true });
+    logs.push({ name:"SYSTEM", type:"EXAM_START", time:new Date().toLocaleString() });
+    res.json({ok:true});
 });
 
-// Thí sinh kiểm tra trạng thái
-app.get("/api/exam/status", (req, res) => {
+// Trạng thái kỳ thi
+app.get("/api/exam/status",(req,res)=>{
     res.json({ started: examStarted });
 });
 
-// Thí sinh vào thi
-app.post("/api/join", (req, res) => {
-    logs.push({
-        name: req.body.name,
-        type: "JOIN",
-        time: new Date().toLocaleString()
-    });
-    res.json({ ok: true });
+// Thí sinh vào
+app.post("/api/join",(req,res)=>{
+    logs.push({ name:req.body.name, type:"JOIN", time:new Date().toLocaleString() });
+    res.json({ok:true});
 });
 
 // Gian lận
-app.post("/api/violation", (req, res) => {
+app.post("/api/violation",(req,res)=>{
     logs.push({
-        name: req.body.name,
-        type: "VIOLATION",
-        reason: req.body.reason,
-        time: new Date().toLocaleString()
+        name:req.body.name,
+        type:"VIOLATION",
+        reason:req.body.reason,
+        time:new Date().toLocaleString()
     });
-    res.json({ ok: true });
+    finishedUsers.add(req.body.name);
+    res.json({ok:true});
 });
 
-// Lấy đề (chỉ khi examStarted = true)
-app.get("/api/questions", (req, res) => {
-    if (!examStarted) {
-        return res.status(403).json({ error: "EXAM_NOT_STARTED" });
-    }
+// Lấy đề (2–3 câu nghiệp vụ)
+app.get("/api/questions",(req,res)=>{
+    if(!examStarted) return res.status(403).json({error:"NOT_STARTED"});
+    const name=req.query.name;
+    if(!name) return res.status(400).json({error:"NO_NAME"});
+    if(finishedUsers.has(name)) return res.status(403).json({error:"ALREADY_DONE"});
 
-    const name = req.query.name;
-    if (!name) return res.status(400).json({ error: "Missing name" });
+    const patrolCount = Math.random()<0.5 ? 2 : 3;
+    const qs = shuffleArray([
+        ...shuffleArray(QUESTION_PATROL).slice(0,patrolCount),
+        ...shuffleArray(QUESTION_BANK).slice(0,10-patrolCount)
+    ]);
 
-    // 🔹 Random số câu nghiệp vụ: 2 hoặc 3
-    const patrolCount = Math.random() < 0.5 ? 2 : 3;
-
-    const patrolQs = shuffleArray(QUESTION_PATROL).slice(0, patrolCount);
-    const normalQs = shuffleArray(QUESTION_BANK).slice(0, 10 - patrolCount);
-
-    // Gộp & trộn thứ tự câu
-    const finalQuestions = shuffleArray([...patrolQs, ...normalQs]);
-
-    // Đảo đáp án từng câu
-    const prepared = finalQuestions.map(q => {
-        const indexed = q.choices.map((text, i) => ({
-            text,
-            isCorrect: i === q.answer
-        }));
-
-        const shuffled = shuffleArray(indexed);
-
+    const prepared = qs.map(q=>{
+        const mix = shuffleArray(
+            q.choices.map((c,i)=>({c,ok:i===q.answer}))
+        );
         return {
-            q: q.q,
-            choices: shuffled.map(c => c.text),
-            correct: shuffled.findIndex(c => c.isCorrect)
+            q:q.q,
+            choices: mix.map(x=>x.c),
+            correct: mix.findIndex(x=>x.ok)
         };
     });
 
-    // Lưu đáp án đúng theo thứ tự câu
-    activeExams[name] = prepared.map(q => q.correct);
-
-    // Chỉ gửi câu hỏi + đáp án (không gửi correct)
-    res.json(prepared.map(q => ({
-        q: q.q,
-        choices: q.choices
-    })));
+    activeExams[name] = prepared.map(q=>q.correct);
+    res.json(prepared.map(q=>({q:q.q,choices:q.choices})));
 });
 
-
 // Nộp bài
-app.post("/api/submit", (req, res) => {
-    const { name, answers } = req.body;
-    const corrects = activeExams[name];
-    if (!corrects) return res.status(400).json({ error: "Exam not found" });
+app.post("/api/submit",(req,res)=>{
+    const {name,answers}=req.body;
+    if(finishedUsers.has(name)) return res.json({ok:true});
 
-    let score = 0;
-    answers.forEach((a, i) => {
-        if (a === corrects[i]) score++;
-    });
+    const corrects = activeExams[name];
+    if(!corrects) return res.status(400).json({error:"NO_EXAM"});
+
+    let score=0;
+    answers.forEach((a,i)=>{ if(a===corrects[i]) score++; });
 
     results.push({
         name,
         score,
-        result: score >= 8 ? "ĐẬU" : "RỚT",
-        time: new Date().toLocaleString()
+        result: score>=8?"ĐẬU":"RỚT",
+        time:new Date().toLocaleString()
     });
 
+    finishedUsers.add(name);
     delete activeExams[name];
-    res.json({ ok: true });
+    res.json({ok:true});
 });
 
-// Dashboard giám khảo
-app.get("/api/dashboard", (req, res) => {
-    res.json({ logs, results, examStarted });
+// Dashboard
+app.get("/api/dashboard",(req,res)=>{
+    res.json({logs,results,examStarted});
 });
 
-app.listen(PORT, () => {
-    console.log(`✅ Server running http://localhost:${PORT}`);
+app.listen(PORT,()=>{
+    console.log("✅ Server http://localhost:"+PORT);
 });

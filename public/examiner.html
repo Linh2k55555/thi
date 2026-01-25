@@ -1,50 +1,36 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-<meta charset="UTF-8">
-<title>FTO</title>
-<style>
-body{font-family:Arial;background:#020617;color:#fff;padding:20px}
-button{
-    padding:12px 24px;
-    font-size:18px;
-    background:#16a34a;
-    color:#fff;
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
-}
-table{width:100%;border-collapse:collapse;margin-top:20px}
-th,td{border:1px solid #444;padding:8px}
-th{background:#1e293b}
-</style>
-</head>
-<body>
-
-<h1>GIÁM KHẢO</h1>
-<button onclick="startExam()">▶ BẮT ĐẦU THI</button>
-
-<h2>LOG</h2>
-<table id="log"></table>
-
-<h2>KẾT QUẢ</h2>
-<table id="res"></table>
-
 <script>
-async function startExam(){
-    await fetch("/api/exam/start",{method:"POST"});
-    alert("Đã mở đề cho thí sinh");
-}
-
 async function load(){
-    const d=await fetch("/api/dashboard").then(r=>r.json());
-    log.innerHTML="<tr><th>Tên</th><th>Loại</th><th>Lý do</th><th>Thời gian</th></tr>"+
-        d.logs.map(l=>`<tr><td>${l.name}</td><td>${l.type}</td><td>${l.reason||""}</td><td>${l.time}</td></tr>`).join("");
-    res.innerHTML="<tr><th>Tên</th><th>Điểm</th><th>KQ</th><th>Thời gian</th></tr>"+
-        d.results.map(r=>`<tr><td>${r.name}</td><td>${r.score}</td><td>${r.result}</td><td>${r.time}</td></tr>`).join("");
-}
-setInterval(load,2000); load();
-</script>
+  try{
+    const d = await fetch("/api/dashboard");
+    if(!d.ok) throw new Error("Server error");
+    const data = await d.json();
 
-</body>
-</html>
+    log.innerHTML =
+      "<tr><th>Tên</th><th>Loại</th><th>Lý do</th><th>Thời gian</th></tr>" +
+      data.logs.map(l =>
+        `<tr>
+          <td>${l.name}</td>
+          <td>${l.type}</td>
+          <td>${l.reason || ""}</td>
+          <td>${l.time}</td>
+        </tr>`
+      ).join("");
+
+    res.innerHTML =
+      "<tr><th>Tên</th><th>Điểm</th><th>KQ</th><th>Thời gian</th></tr>" +
+      data.results.map(r =>
+        `<tr>
+          <td>${r.name}</td>
+          <td>${r.score}</td>
+          <td>${r.result}</td>
+          <td>${r.time}</td>
+        </tr>`
+      ).join("");
+  }catch(err){
+    console.warn("⚠️ Không kết nối được server");
+  }
+}
+
+setInterval(load, 2000);
+load();
+</script>
