@@ -22,15 +22,23 @@ function shuffleArray(arr) {
     return a;
 }
 
+function formatMCAnswers(answers, corrects) {
+    // -> ["A ✔", "C ✘", ...]
+    return answers.map((a, i) => {
+        const letter = String.fromCharCode(65 + a);
+        const ok = a === corrects[i];
+        return `${letter} ${ok ? "✔" : "✘"}`;
+    });
+}
+
 /* ================= TRẠNG THÁI ================= */
 let examStarted = false;
-
-const logs = [];
-const results = [];
-const activeExams = {};
-const examDetails = {};
+const activeCorrects = {}; // name -> [correct indexes]
+const activeAnswers = {};  // name -> [user answers]
+const activeScore = {};    // name -> score
 const finishedUsers = new Set();
 
+/* ================= BỘ ĐỀ (CỦA BẠN) ================= */
 /* ================= CÂU HỎI (RÚT GỌN – GIỮ NGUYÊN LOGIC) ================= */
 const QUESTION_BANK = [
   {
@@ -350,150 +358,123 @@ const QUESTION_PATROL = [
 ];
 /* ================= API ================= */
 
-// FTO mở đề
+/* ================= API ================= */
+
+// Giám khảo mở đề
 app.post("/api/exam/start", (req, res) => {
     examStarted = true;
-    logs.push({
-        name: "SYSTEM",
-        type: "EXAM_START",
-        time: new Date().toLocaleString("vi-VN")
-    });
     res.json({ ok: true });
 });
 
+// Trạng thái kỳ thi
 app.get("/api/exam/status", (req, res) => {
     res.json({ started: examStarted });
 });
 
-// Thí sinh join
+// Thí sinh vào
 app.post("/api/join", (req, res) => {
-    logs.push({
-        name: req.body.name,
-        type: "JOIN",
-        time: new Date().toLocaleString("vi-VN")
-    });
     res.json({ ok: true });
 });
 
-// Gian lận
-app.post("/api/violation", (req, res) => {
-    logs.push({
-        name: req.body.name,
-        type: "VIOLATION",
-        reason: req.body.reason,
-        time: new Date().toLocaleString("vi-VN")
-    });
-    finishedUsers.add(req.body.name);
-    res.json({ ok: true });
-});
-
-// Lấy đề
+// Lấy đề thi
 app.get("/api/questions", (req, res) => {
-    if (!examStarted) return res.status(403).json({ error: "NOT_STARTED" });
+    if (!examStarted)
+        return res.status(403).json({ error: "NOT_STARTED" });
 
     const name = req.query.name;
     if (!name) return res.status(400).json({ error: "NO_NAME" });
     if (finishedUsers.has(name))
-        return res.status(403).json({ error: "ALREADY_DONE" });
+        return res.status(403).json({ error: "DONE" });
 
+    // 2–3 câu nghiệp vụ
     const patrolCount = Math.random() < 0.5 ? 2 : 3;
 
-    const qs = shuffleArray([
+    const picked = shuffleArray([
         ...shuffleArray(QUESTION_PATROL).slice(0, patrolCount),
         ...shuffleArray(QUESTION_BANK).slice(0, 10 - patrolCount)
     ]);
 
-    const prepared = qs.map(q => {
-        const mix = shuffleArray(
-            q.choices.map((c, i) => ({ c, ok: i === q.answer }))
+    const prepared = picked.map(q => {
+        const mixed = shuffleArray(
+            q.choices.map((c, i) => ({
+                text: c,
+                ok: i === q.answer
+            }))
         );
+
         return {
             q: q.q,
-            choices: mix.map(x => x.c),
-            correct: mix.findIndex(x => x.ok)
+            choices: mixed.map(x => x.text),
+            correct: mixed.findIndex(x => x.ok)
         };
     });
 
-    activeExams[name] = prepared.map(q => q.correct);
-    examDetails[name] = prepared.map(q => ({
-        question: q.q,
-        choices: q.choices
-    }));
+    // Lưu đáp án đúng ngầm
+    activeCorrects[name] = prepared.map(q => q.correct);
 
-    res.json(prepared.map(q => ({ q: q.q, choices: q.choices })));
+    // Trả cho client (KHÔNG gửi đáp án đúng)
+    res.json(
+        prepared.map(q => ({
+            q: q.q,
+            choices: q.choices
+        }))
+    );
 });
 
-// Nộp trắc nghiệm (CHƯA kết thúc)
+// Nộp trắc nghiệm
 app.post("/api/submit", (req, res) => {
     const { name, answers } = req.body;
-    const corrects = activeExams[name];
-    if (!corrects) return res.status(400).json({ error: "NO_EXAM" });
+    const corrects = activeCorrects[name];
+    if (!corrects)
+        return res.status(400).json({ error: "NO_EXAM" });
 
     let score = 0;
     answers.forEach((a, i) => {
         if (a === corrects[i]) score++;
     });
 
-    activeExams[name + "_score"] = score;
-    activeExams[name + "_answers"] = answers;
+    activeAnswers[name] = answers;
+    activeScore[name] = score;
 
     res.json({ ok: true, score });
 });
 
 // Nộp tự luận + ghi Google Sheet
-// Nộp tự luận + ghi Google Sheet (CHUẨN)
 app.post("/api/submit-essay", async (req, res) => {
-    try {
-        const { name, essay } = req.body;
-        if (finishedUsers.has(name)) {
-            return res.json({ ok: true });
-        }
+    const { name, essay } = req.body;
+    if (finishedUsers.has(name)) return res.json({ ok: true });
 
-        const score = activeExams[name + "_score"] || 0;
-        const answers = activeExams[name + "_answers"] || [];
-        const pass = score >= 8 ? "ĐẬU" : "RỚT";
-        const time = new Date().toLocaleString("vi-VN");
+    const answers = activeAnswers[name] || [];
+    const corrects = activeCorrects[name] || [];
+    const score = activeScore[name] || 0;
+    const result = score >= 8 ? "ĐẬU" : "RỚT";
+    const time = new Date().toLocaleString("vi-VN");
 
-        // Chuyển đáp án số → A/B/C/D
-        const answerLetters = [];
-        for (let i = 0; i < 10; i++) {
-            const a = answers[i];
-            if (a === undefined || a === null) {
-                answerLetters.push("");
-            } else {
-                answerLetters.push(String.fromCharCode(65 + a));
-            }
-        }
+    // 👉 ĐÚNG / SAI TỪNG CÂU
+    const mcFormatted = formatMCAnswers(answers, corrects);
 
-        // Ghi kết quả nội bộ (dashboard)
-        results.push({ name, score, result: pass, time });
+    /*
+      Sheet format:
+      | Time | Name | Score | Result | C1 | C2 | ... | C10 | Essay |
+    */
+    await appendExamResult([
+        time,
+        name,
+        score,
+        result,
+        ...mcFormatted,
+        essay
+    ]);
 
-        // GHI GOOGLE SHEET – KHỚP CỘT C1 → C10
-        await appendExamResult([
-            time,
-            name,
-            score,
-            pass,
-            ...answerLetters,   // C1 → C10
-            essay || ""
-        ]);
+    finishedUsers.add(name);
+    delete activeCorrects[name];
+    delete activeAnswers[name];
+    delete activeScore[name];
 
-        finishedUsers.add(name);
-        delete activeExams[name + "_score"];
-        delete activeExams[name + "_answers"];
-
-        res.json({ ok: true });
-    } catch (err) {
-        console.error("❌ GHI SHEET LỖI:", err);
-        res.status(500).json({ error: "SHEET_ERROR" });
-    }
+    res.json({ ok: true });
 });
 
-// Dashboard
-app.get("/api/dashboard", (req, res) => {
-    res.json({ logs, results, examStarted });
-});
-
+/* ================= START ================= */
 app.listen(PORT, () => {
     console.log("✅ Server chạy tại http://localhost:" + PORT);
 });
