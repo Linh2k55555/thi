@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import { appendExamResult } from "./googleSheets.js";
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,7 +23,7 @@ function shuffleArray(arr) {
 }
 
 function formatMCAnswers(answers, corrects) {
-    // -> ["A ✔", "C ✘", ...]
+    // ["A ✔", "C ✘", ...]
     return answers.map((a, i) => {
         const letter = String.fromCharCode(65 + a);
         const ok = a === corrects[i];
@@ -33,12 +33,15 @@ function formatMCAnswers(answers, corrects) {
 
 /* ================= TRẠNG THÁI ================= */
 let examStarted = false;
-const activeCorrects = {}; // name -> [correct indexes]
-const activeAnswers = {};  // name -> [user answers]
-const activeScore = {};    // name -> score
-const finishedUsers = new Set();
 
-/* ================= BỘ ĐỀ (CỦA BẠN) ================= */
+const activeCorrects = {}; // name -> [correct index]
+const activeAnswers  = {}; // name -> [user answers]
+const activeScores   = {}; // name -> score
+const finishedUsers  = new Set();
+
+const dashboardResults = []; // cho examiner.html
+
+/* ================= BỘ ĐỀ ================= */
 /* ================= CÂU HỎI (RÚT GỌN – GIỮ NGUYÊN LOGIC) ================= */
 const QUESTION_BANK = [
   {
@@ -356,7 +359,7 @@ const QUESTION_PATROL = [
       "Phạt cho chừa","Yêu cầu về đồn sau"],
     answer:1 }
 ];
-/* ================= API ================= */
+
 
 /* ================= API ================= */
 
@@ -382,7 +385,9 @@ app.get("/api/questions", (req, res) => {
         return res.status(403).json({ error: "NOT_STARTED" });
 
     const name = req.query.name;
-    if (!name) return res.status(400).json({ error: "NO_NAME" });
+    if (!name)
+        return res.status(400).json({ error: "NO_NAME" });
+
     if (finishedUsers.has(name))
         return res.status(403).json({ error: "DONE" });
 
@@ -409,10 +414,10 @@ app.get("/api/questions", (req, res) => {
         };
     });
 
-    // Lưu đáp án đúng ngầm
+    // Lưu đáp án đúng (ẩn)
     activeCorrects[name] = prepared.map(q => q.correct);
 
-    // Trả cho client (KHÔNG gửi đáp án đúng)
+    // Trả cho client (KHÔNG gửi correct)
     res.json(
         prepared.map(q => ({
             q: q.q,
@@ -424,6 +429,7 @@ app.get("/api/questions", (req, res) => {
 // Nộp trắc nghiệm
 app.post("/api/submit", (req, res) => {
     const { name, answers } = req.body;
+
     const corrects = activeCorrects[name];
     if (!corrects)
         return res.status(400).json({ error: "NO_EXAM" });
@@ -434,7 +440,7 @@ app.post("/api/submit", (req, res) => {
     });
 
     activeAnswers[name] = answers;
-    activeScore[name] = score;
+    activeScores[name] = score;
 
     res.json({ ok: true, score });
 });
@@ -442,36 +448,50 @@ app.post("/api/submit", (req, res) => {
 // Nộp tự luận + ghi Google Sheet
 app.post("/api/submit-essay", async (req, res) => {
     const { name, essay } = req.body;
-    if (finishedUsers.has(name)) return res.json({ ok: true });
+    if (finishedUsers.has(name))
+        return res.json({ ok: true });
 
-    const answers = activeAnswers[name] || [];
+    const answers  = activeAnswers[name] || [];
     const corrects = activeCorrects[name] || [];
-    const score = activeScore[name] || 0;
+    const score    = activeScores[name] || 0;
+
     const result = score >= 8 ? "ĐẬU" : "RỚT";
     const time = new Date().toLocaleString("vi-VN");
 
-    // 👉 ĐÚNG / SAI TỪNG CÂU
     const mcFormatted = formatMCAnswers(answers, corrects);
 
-    /*
-      Sheet format:
-      | Time | Name | Score | Result | C1 | C2 | ... | C10 | Essay |
-    */
+    // Ghi Google Sheet
     await appendExamResult([
         time,
         name,
         score,
         result,
-        ...mcFormatted,
+        ...mcFormatted, // C1 → C10 (A ✔ / B ✘)
         essay
     ]);
+
+    // Lưu cho dashboard giám khảo
+    dashboardResults.push({
+        name,
+        score,
+        result,
+        time
+    });
 
     finishedUsers.add(name);
     delete activeCorrects[name];
     delete activeAnswers[name];
-    delete activeScore[name];
+    delete activeScores[name];
 
     res.json({ ok: true });
+});
+
+// ===== DASHBOARD (FIX 404) =====
+app.get("/api/dashboard", (req, res) => {
+    res.json({
+        started: examStarted,
+        results: dashboardResults
+    });
 });
 
 /* ================= START ================= */
