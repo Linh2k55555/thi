@@ -78,14 +78,14 @@
 
 <script>
 const resultsTable = document.getElementById("results");
-const logsTable = document.getElementById("logs");
 const startBtn = document.getElementById("startBtn");
 
-/* ================= LOAD DASHBOARD ================= */
+const API_BASE = location.origin;
+
 async function load() {
     try {
-        const res = await fetch("/api/dashboard");
-        if (!res.ok) return;
+        const res = await fetch(API_BASE + "/api/dashboard");
+        if (!res.ok) throw new Error("HTTP " + res.status);
 
         const data = await res.json();
 
@@ -101,55 +101,28 @@ async function load() {
                 <th>Họ tên</th>
                 <th>Điểm</th>
                 <th>Kết quả</th>
-                <th>Thời gian nộp</th>
+                <th>Thời gian</th>
             </tr>
         ` + data.results.map(r => `
             <tr>
                 <td>${r.name}</td>
                 <td>${r.score}/10</td>
-                <td class="${r.result === 'ĐẬU' ? 'success' : 'danger'}">
+                <td style="font-weight:bold;color:${r.result === "ĐẬU" ? "green" : "red"}">
                     ${r.result}
                 </td>
                 <td>${r.time}</td>
             </tr>
         `).join("");
 
-        // Render log gian lận
-        logsTable.innerHTML = `
-            <tr>
-                <th>Họ tên</th>
-                <th>Loại</th>
-                <th>Lý do</th>
-                <th>Thời gian</th>
-            </tr>
-        ` + data.logs.map(l => `
-            <tr>
-                <td>${l.name}</td>
-                <td class="danger">${l.type}</td>
-                <td>${l.reason || ""}</td>
-                <td>${l.time}</td>
-            </tr>
-        `).join("");
-
     } catch (err) {
-        // Không spam lỗi khi server tắt
-        console.warn("⚠️ Không kết nối được server");
+        console.warn("⚠️ Không kết nối được server", err.message);
     }
 }
 
-/* ================= START EXAM ================= */
-async function startExam() {
-    if (!confirm("Bạn chắc chắn muốn bắt đầu kỳ thi?")) return;
-
-    await fetch("/api/exam/start", { method: "POST" });
-    startBtn.disabled = true;
-    startBtn.innerText = "⏳ Kỳ thi đang diễn ra";
-}
-
-/* ================= AUTO REFRESH ================= */
 load();
 setInterval(load, 2000);
 </script>
+
 
 </body>
 </html>
