@@ -1,36 +1,155 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Giám Khảo – Dashboard</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f1f5f9;
+        padding: 20px;
+    }
+    h1 {
+        margin-bottom: 10px;
+    }
+    button {
+        padding: 10px 20px;
+        font-size: 16px;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        margin-bottom: 20px;
+    }
+    button:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+    }
+    table {
+        border-collapse: collapse;
+        width: 100%;
+        background: #fff;
+        margin-bottom: 30px;
+    }
+    th, td {
+        border: 1px solid #cbd5e1;
+        padding: 8px;
+        text-align: left;
+        font-size: 14px;
+    }
+    th {
+        background: #e2e8f0;
+    }
+    .danger {
+        color: red;
+        font-weight: bold;
+    }
+    .success {
+        color: green;
+        font-weight: bold;
+    }
+</style>
+</head>
+<body>
+
+<h1>👨‍⚖️ DASHBOARD GIÁM KHẢO</h1>
+
+<button id="startBtn" onclick="startExam()">🚀 BẮT ĐẦU KỲ THI</button>
+
+<h2>📋 Kết quả thí sinh</h2>
+<table id="results">
+    <tr>
+        <th>Họ tên</th>
+        <th>Điểm</th>
+        <th>Kết quả</th>
+        <th>Thời gian nộp</th>
+    </tr>
+</table>
+
+<h2>🚨 Log gian lận</h2>
+<table id="logs">
+    <tr>
+        <th>Họ tên</th>
+        <th>Loại</th>
+        <th>Lý do</th>
+        <th>Thời gian</th>
+    </tr>
+</table>
+
 <script>
-async function load(){
-  try{
-    const d = await fetch("/api/dashboard");
-    if(!d.ok) throw new Error("Server error");
-    const data = await d.json();
+const resultsTable = document.getElementById("results");
+const logsTable = document.getElementById("logs");
+const startBtn = document.getElementById("startBtn");
 
-    log.innerHTML =
-      "<tr><th>Tên</th><th>Loại</th><th>Lý do</th><th>Thời gian</th></tr>" +
-      data.logs.map(l =>
-        `<tr>
-          <td>${l.name}</td>
-          <td>${l.type}</td>
-          <td>${l.reason || ""}</td>
-          <td>${l.time}</td>
-        </tr>`
-      ).join("");
+/* ================= LOAD DASHBOARD ================= */
+async function load() {
+    try {
+        const res = await fetch("/api/dashboard");
+        if (!res.ok) return;
 
-    res.innerHTML =
-      "<tr><th>Tên</th><th>Điểm</th><th>KQ</th><th>Thời gian</th></tr>" +
-      data.results.map(r =>
-        `<tr>
-          <td>${r.name}</td>
-          <td>${r.score}</td>
-          <td>${r.result}</td>
-          <td>${r.time}</td>
-        </tr>`
-      ).join("");
-  }catch(err){
-    console.warn("⚠️ Không kết nối được server");
-  }
+        const data = await res.json();
+
+        // Update nút start
+        if (data.started) {
+            startBtn.disabled = true;
+            startBtn.innerText = "⏳ Kỳ thi đang diễn ra";
+        }
+
+        // Render kết quả
+        resultsTable.innerHTML = `
+            <tr>
+                <th>Họ tên</th>
+                <th>Điểm</th>
+                <th>Kết quả</th>
+                <th>Thời gian nộp</th>
+            </tr>
+        ` + data.results.map(r => `
+            <tr>
+                <td>${r.name}</td>
+                <td>${r.score}/10</td>
+                <td class="${r.result === 'ĐẬU' ? 'success' : 'danger'}">
+                    ${r.result}
+                </td>
+                <td>${r.time}</td>
+            </tr>
+        `).join("");
+
+        // Render log gian lận
+        logsTable.innerHTML = `
+            <tr>
+                <th>Họ tên</th>
+                <th>Loại</th>
+                <th>Lý do</th>
+                <th>Thời gian</th>
+            </tr>
+        ` + data.logs.map(l => `
+            <tr>
+                <td>${l.name}</td>
+                <td class="danger">${l.type}</td>
+                <td>${l.reason || ""}</td>
+                <td>${l.time}</td>
+            </tr>
+        `).join("");
+
+    } catch (err) {
+        // Không spam lỗi khi server tắt
+        console.warn("⚠️ Không kết nối được server");
+    }
 }
 
-setInterval(load, 2000);
+/* ================= START EXAM ================= */
+async function startExam() {
+    if (!confirm("Bạn chắc chắn muốn bắt đầu kỳ thi?")) return;
+
+    await fetch("/api/exam/start", { method: "POST" });
+    startBtn.disabled = true;
+    startBtn.innerText = "⏳ Kỳ thi đang diễn ra";
+}
+
+/* ================= AUTO REFRESH ================= */
 load();
+setInterval(load, 2000);
 </script>
+
+</body>
+</html>
