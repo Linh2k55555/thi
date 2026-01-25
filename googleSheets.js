@@ -15,15 +15,20 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: "v4", auth });
 
 export async function appendExamResult(row) {
-    await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: SHEET_NAME,     // ⭐ chỉ tên sheet
-        valueInputOption: "Results",
-        insertDataOption: "INSERT_ROWS",
-        requestBody: {
-            values: [row]
-        }
-    });
+    try {
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${SHEET_NAME}!A:Z`,   // ✅ RANGE CHUẨN
+            valueInputOption: "RAW",     // ✅ OPTION CHUẨN
+            insertDataOption: "INSERT_ROWS",
+            requestBody: {
+                values: [row]
+            }
+        });
 
-    console.log("✅ Ghi Google Sheet thành công");
+        console.log("✅ Ghi Google Sheet thành công");
+    } catch (err) {
+        console.error("❌ GHI SHEET LỖI:", err.message);
+        throw err;
+    }
 }
