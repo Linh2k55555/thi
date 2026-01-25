@@ -281,7 +281,7 @@ function App() {
     }
 
     if (stage === "WAIT") {
-        return <h2 style={{ padding: 40 }}>⏳ Đang chờ giám khảo mở đề...</h2>;
+        return <h2 style={{ padding: 40 }}>⏳ Đang chờ FTO mở đề...</h2>;
     }
 
     if (stage === "SUBMITTED") {
@@ -289,7 +289,7 @@ function App() {
             <h2 style={{ padding: 40 }}>
                 ✅ Bài thi đã được nộp.
                 <br />
-                Vui lòng chờ giám khảo công bố kết quả.
+                Vui lòng chờ FTO công bố kết quả.
             </h2>
         );
     }
