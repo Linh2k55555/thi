@@ -1,20 +1,74 @@
 <!DOCTYPE html>
+
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>HỌC VIÊN</title>
-<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+<!-- React -->
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+<!-- Babel -->
+
 <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
 <style>
-body{margin:0;background:#020617;color:#fff;font-family:Segoe UI}
-canvas{background:#fff;margin:20px auto;display:block;border-radius:8px}
-button,input,textarea{padding:12px 20px;font-size:16px;border-radius:6px}
-button{background:#2563eb;color:#fff;border:none}
+body{
+    margin:0;
+    background:#020617;
+    color:#fff;
+    font-family:Segoe UI, sans-serif;
+    text-align:center;
+}
+
+#root{
+    padding-top:20px;
+}
+
+canvas{
+    background:#fff;
+    margin:20px auto;
+    display:block;
+    border-radius:8px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4);
+}
+
+button,input,textarea{
+    padding:12px 20px;
+    font-size:16px;
+    border-radius:6px;
+    border:none;
+}
+
+input, textarea{
+    width:100%;
+    max-width:420px;
+}
+
+button{
+    background:#2563eb;
+    color:#fff;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#1d4ed8;
+}
 </style>
+
 </head>
+
 <body>
+
 <div id="root"></div>
-<script type="text/babel" src="app.jsx"></script>
+
+<!-- Load React App -->
+
+<script type="text/babel" src="./app.jsx"></script>
+
 </body>
 </html>
