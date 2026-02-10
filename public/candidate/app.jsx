@@ -1,31 +1,30 @@
+
+
+:::writing{variant="standard" id="18347"}
 const { useState, useEffect, useRef } = React;
 
 /* ===== VẼ TEXT TỰ XUỐNG DÒNG ===== */
 function drawWrap(ctx, text, x, y, maxW, lh) {
-const words = text.split(" ");
-let line = "";
-let yy = y;
+    const words = text.split(" ");
+    let line = "";
+    let yy = y;
 
-```
-for (let i = 0; i < words.length; i++) {
-    const test = line + words[i] + " ";
-    if (ctx.measureText(test).width > maxW && i > 0) {
-        ctx.fillText(line, x, yy);
-        line = words[i] + " ";
-        yy += lh;
-    } else {
-        line = test;
+    for (let i = 0; i < words.length; i++) {
+        const test = line + words[i] + " ";
+        if (ctx.measureText(test).width > maxW && i > 0) {
+            ctx.fillText(line, x, yy);
+            line = words[i] + " ";
+            yy += lh;
+        } else {
+            line = test;
+        }
     }
-}
-ctx.fillText(line, x, yy);
-return yy;
-```
-
+    ctx.fillText(line, x, yy);
+    return yy;
 }
 
 function App() {
 
-```
 const canvasRef = useRef(null);
 const answerBoxes = useRef([]);
 
@@ -46,8 +45,6 @@ const [violationReason, setViolationReason] = useState("");
 
 /* ===== DANH SÁCH CÂU TỰ LUẬN ===== */
 const essayQuestions = [
-```
-
 `Bạn đang trong ca trực tuần tra bắn tốc độ tại tuyến đường chính.
 Khi đang xử lý vi phạm thì có lệnh khẩn cấp yêu cầu hỗ trợ.
 Bạn sẽ xử lý tình huống này như thế nào?`,
@@ -61,7 +58,6 @@ Trong tình huống này, anh sẽ xử lý như thế nào với người tài 
 Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng vào những tên còn lại ngay lập tức không?`
 ];
 
-```
 /* ================= GIAN LẬN ================= */
 function violation(reason) {
     if (stage !== "EXAM" && stage !== "ESSAY") return;
@@ -121,7 +117,6 @@ useEffect(() => {
     return () => clearTimeout(t);
 }, [essayTime, stage]);
 
-/* ================= JOIN ================= */
 async function join() {
     if (!name) return alert("Nhập họ tên");
 
@@ -156,7 +151,6 @@ async function startExam() {
     document.documentElement.requestFullscreen();
 }
 
-/* ================= NỘP TRẮC NGHIỆM ================= */
 async function submitMC(a) {
     await fetch("/api/submit", {
         method: "POST",
@@ -198,7 +192,6 @@ function next() {
     }
 }
 
-/* ================= CLICK ================= */
 function click(e) {
     if (stage !== "EXAM") return;
 
@@ -297,8 +290,10 @@ if (stage === "VIOLATION")
     return <h2 style={{ padding: 40, color: "red" }}>❌ Bài thi bị khóa<br />{violationReason}</h2>;
 
 return <canvas ref={canvasRef} width={900} height={540} onClick={click} />;
-```
 
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+:::
+
+
