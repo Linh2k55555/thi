@@ -1,6 +1,4 @@
 
-
-:::writing{variant="standard" id="18347"}
 const { useState, useEffect, useRef } = React;
 
 /* ===== VẼ TEXT TỰ XUỐNG DÒNG ===== */
@@ -294,6 +292,5 @@ return <canvas ref={canvasRef} width={900} height={540} onClick={click} />;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-:::
 
 
