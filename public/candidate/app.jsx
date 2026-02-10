@@ -266,18 +266,33 @@ if (stage === "WAIT")
 
 if (stage === "ESSAY")
     return (
-        <div style={{ padding: 40 }}>
-            <h2>📝 CÂU HỎI TỰ LUẬN (⏱ {essayTime}s)</h2>
-            <p style={{ maxWidth: 900, whiteSpace: "pre-line" }}>
-                {essayQuestion}
-            </p>
-            <textarea
-                value={essay}
-                onChange={e => setEssay(e.target.value)}
-                style={{ width: "100%", maxWidth: 900, height: 220, fontSize: 16 }}
-            />
-            <br /><br />
-            <button onClick={submitEssay}>NỘP BÀI</button>
+        <div className="essay-wrap">
+
+            <div className="essay-card">
+
+                <div className="essay-title">
+                    📝 CÂU HỎI TỰ LUẬN (⏱ {essayTime}s)
+                </div>
+
+                <div className="essay-question">
+                    {essayQuestion}
+                </div>
+
+                <textarea
+                    className="essay-textarea"
+                    value={essay}
+                    onChange={e => setEssay(e.target.value)}
+                />
+
+                <button
+                    className="essay-btn"
+                    onClick={submitEssay}
+                >
+                    NỘP BÀI
+                </button>
+
+            </div>
+
         </div>
     );
 
