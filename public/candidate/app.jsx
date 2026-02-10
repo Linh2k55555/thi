@@ -24,10 +24,11 @@ return yy;
 }
 
 function App() {
+
+```
 const canvasRef = useRef(null);
 const answerBoxes = useRef([]);
 
-```
 const [name, setName] = useState("");
 const [stage, setStage] = useState("LOGIN");
 
