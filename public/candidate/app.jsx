@@ -1,7 +1,6 @@
 
 const { useState, useEffect, useRef } = React;
 
-/* ===== VẼ TEXT TỰ XUỐNG DÒNG ===== */
 function drawWrap(ctx, text, x, y, maxW, lh) {
     const words = text.split(" ");
     let line = "";
@@ -208,7 +207,6 @@ function click(e) {
     }
 }
 
-/* ================= VẼ CANVAS ================= */
 useEffect(() => {
     if (stage !== "EXAM") return;
     if (!questions[index]) return;
