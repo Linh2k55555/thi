@@ -1,7 +1,8 @@
+import 'dotenv/config';
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import sendExamResult from "./discordWebhook.js";
+import { sendExamResult } from "./discordWebhook.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,9 +34,10 @@ function formatMCAnswers(answers, corrects) {
 /* ================= TRẠNG THÁI ================= */
 let examStarted = false;
 
-const activeCorrects = {}; // name -> correct[]
-const activeAnswers = {}; // name -> answers[]
-const activeScores = {}; // name -> score
+const activeCorrects = {};   // name -> correct[]
+const activeAnswers = {};    // name -> answers[]
+const activeScores = {};     // name -> score
+const activeQuestions = {};  // name -> questions[] (có q, choices, correct)
 const finishedUsers = new Set();
 
 /* ===== LOG + DASHBOARD ===== */
@@ -43,20 +45,20 @@ const logs = [];
 const results = [];
 
 /* ================= BỘ ĐỀ ================= */
-/* ================= CÂU HỎI (RÚT GỌN – GIỮ NGUYÊN LOGIC) ================= */
+/* ================= CÂU HỎI LÝ THUYẾT (30 CÂU) ================= */
 const QUESTION_BANK = [
   {
     q: "Theo quy định về phạm vi thẩm quyền, lực lượng nào có quyền hạn tuần tra trên tất cả các xa lộ, đường phố và có thể thực thi pháp luật ở bất kỳ nơi nào trong tiểu bang San Andreas?",
     choices: [
       "Los Santos Police Department (LSPD)",
       "San Andreas State Police (SASP)",
-      "Senora Desert Sheriff’s Office (SDSO)",
-      "Paleto Bay Sheriff’s Office (PBSO)"
+      "Senora Desert Sheriff's Office (SDSO)",
+      "Paleto Bay Sheriff's Office (PBSO)"
     ],
     answer: 1
   },
   {
-    q: "Trong các quy định nội bộ của UPD, hành vi nào sau đây bị NGHIÊM CẤM?",
+    q: "Trong các quy định nội bộ của LSPD, hành vi nào sau đây bị NGHIÊM CẤM?",
     choices: [
       "Đỗ xe riêng trong bãi đỗ xe riêng của sở",
       "Nghỉ ngơi khi mang đồng phục ở nơi người dân không nhìn thấy",
@@ -71,7 +73,7 @@ const QUESTION_BANK = [
     answer: 0
   },
   {
-    q: "Sự khác biệt chính giữa Code 2 (C2) và Code 3 (C3) trong hệ thống mã tình huống của UPD là gì?",
+    q: "Sự khác biệt chính giữa Code 2 (C2) và Code 3 (C3) trong hệ thống mã tình huống của LSPD là gì?",
     choices: [
       "Code 2 chỉ bật đèn, Code 3 bật cả đèn và còi",
       "Code 2 bật đèn và còi, Code 3 bật đèn và còi đôi",
@@ -321,6 +323,7 @@ const QUESTION_BANK = [
     answer: 1
   }
 ];
+
 /* ================= BỘ ĐỀ NGHIỆP VỤ (10 CÂU) ================= */
 const QUESTION_PATROL = [
   {
@@ -339,15 +342,18 @@ const QUESTION_PATROL = [
     answer: 1
   },
   {
-    q: "Mục đích hỏi “Anh/Chị vừa đi từ đâu tới?”",
+    q: "Mục đích hỏi \"Anh/Chị vừa đi từ đâu tới?\"",
     choices: ["Xã giao", "Đối chiếu hướng di chuyển", "Ghi biên bản", "Kiểm tra trí nhớ"],
     answer: 1
   },
   {
     q: "Câu hỏi thăm dò lý do vội vã phù hợp?",
-    choices: ["Chạy như ăn cướp?", "Biết là vi phạm không?",
+    choices: [
+      "Chạy như ăn cướp?",
+      "Biết là vi phạm không?",
       "Có chuyện gì khiến anh/chị phải di chuyển nhanh trong khu vực này?",
-      "Anh mang hàng cấm?"],
+      "Anh mang hàng cấm?"
+    ],
     answer: 2
   },
   {
@@ -357,10 +363,12 @@ const QUESTION_PATROL = [
   },
   {
     q: "Lời thoại chuyên nghiệp khi kiểm tra xe?",
-    choices: ["Tôi nghi anh là hung thủ",
+    choices: [
+      "Tôi nghi anh là hung thủ",
       "Vì khu vực vừa xảy ra trọng án, tôi cần kiểm tra xe để đảm bảo an toàn",
       "Luật server cho phép",
-      "Xuống xe ngay"],
+      "Xuống xe ngay"
+    ],
     answer: 1
   },
   {
@@ -375,8 +383,12 @@ const QUESTION_PATROL = [
   },
   {
     q: "Nếu tài xế là nhân chứng hoảng loạn?",
-    choices: ["Cho đi ngay", "Thu thập thông tin nhân chứng",
-      "Phạt cho chừa", "Yêu cầu về đồn sau"],
+    choices: [
+      "Cho đi ngay",
+      "Thu thập thông tin nhân chứng",
+      "Phạt cho chừa",
+      "Yêu cầu về đồn sau"
+    ],
     answer: 1
   }
 ];
@@ -394,6 +406,29 @@ app.post("/api/exam/start", (req, res) => {
   res.json({ ok: true });
 });
 
+// ===== GIÁM KHẢO RESET =====
+app.post("/api/exam/reset", (req, res) => {
+  examStarted = false;
+  
+  // Xóa toàn bộ dữ liệu thí sinh
+  Object.keys(activeCorrects).forEach(key => delete activeCorrects[key]);
+  Object.keys(activeAnswers).forEach(key => delete activeAnswers[key]);
+  Object.keys(activeScores).forEach(key => delete activeScores[key]);
+  Object.keys(activeQuestions).forEach(key => delete activeQuestions[key]);
+  finishedUsers.clear();
+  
+  // Reset logs và results
+  logs.length = 0;
+  results.length = 0;
+
+  logs.push({
+    type: "EXAM_RESET",
+    time: new Date().toLocaleString("vi-VN")
+  });
+
+  res.json({ ok: true });
+});
+
 // ===== TRẠNG THÁI =====
 app.get("/api/exam/status", (req, res) => {
   res.json({ started: examStarted });
@@ -401,9 +436,15 @@ app.get("/api/exam/status", (req, res) => {
 
 // ===== THÍ SINH VÀO =====
 app.post("/api/join", (req, res) => {
+  const { name } = req.body;
+  
+  if (!name) {
+    return res.status(400).json({ error: "Thiếu tên thí sinh" });
+  }
+
   logs.push({
     type: "JOIN",
-    name: req.body.name,
+    name: name,
     time: new Date().toLocaleString("vi-VN")
   });
 
@@ -414,6 +455,10 @@ app.post("/api/join", (req, res) => {
 app.post("/api/violation", (req, res) => {
   const { name, reason } = req.body;
 
+  if (!name || !reason) {
+    return res.status(400).json({ error: "Thiếu thông tin vi phạm" });
+  }
+
   logs.push({
     type: "VIOLATION",
     name,
@@ -421,29 +466,48 @@ app.post("/api/violation", (req, res) => {
     time: new Date().toLocaleString("vi-VN")
   });
 
+  // Đánh dấu thí sinh đã hoàn thành (bị loại)
   finishedUsers.add(name);
+  
+  // Xóa dữ liệu thí sinh để tránh rò rỉ bộ nhớ
+  delete activeCorrects[name];
+  delete activeAnswers[name];
+  delete activeScores[name];
+  delete activeQuestions[name];
+  
+  // Thêm vào kết quả
+  results.push({
+    name,
+    score: 0,
+    result: "VI PHẠM",
+    time: new Date().toLocaleString("vi-VN")
+  });
+
   res.json({ ok: true });
 });
 
 // ===== LẤY ĐỀ =====
 app.get("/api/questions", (req, res) => {
   if (!examStarted)
-    return res.status(403).json({ error: "NOT_STARTED" });
+    return res.status(403).json({ error: "NOT_STARTED", message: "Kỳ thi chưa bắt đầu" });
 
   const name = req.query.name;
   if (!name)
-    return res.status(400).json({ error: "NO_NAME" });
+    return res.status(400).json({ error: "NO_NAME", message: "Thiếu tên thí sinh" });
 
   if (finishedUsers.has(name))
-    return res.status(403).json({ error: "DONE" });
+    return res.status(403).json({ error: "DONE", message: "Thí sinh đã hoàn thành bài thi" });
 
+  // Random số câu hỏi nghiệp vụ (2 hoặc 3)
   const patrolCount = Math.random() < 0.5 ? 2 : 3;
 
+  // Chọn câu hỏi
   const picked = shuffleArray([
     ...shuffleArray(QUESTION_PATROL).slice(0, patrolCount),
     ...shuffleArray(QUESTION_BANK).slice(0, 10 - patrolCount)
   ]);
 
+  // Chuẩn bị câu hỏi (xáo trộn đáp án)
   const prepared = picked.map(q => {
     const mixed = shuffleArray(
       q.choices.map((c, i) => ({
@@ -459,14 +523,25 @@ app.get("/api/questions", (req, res) => {
     };
   });
 
+  // Lưu trạng thái
   activeCorrects[name] = prepared.map(q => q.correct);
+  
+  // Lưu đề thi gốc (để gửi Discord sau)
+  activeQuestions[name] = prepared.map(q => ({
+    q: q.q,
+    choices: q.choices,
+    correct: q.correct
+  }));
 
   logs.push({
     type: "START_EXAM",
     name,
+    questionsCount: prepared.length,
+    patrolCount,
     time: new Date().toLocaleString("vi-VN")
   });
 
+  // Gửi đề thi (không kèm correct)
   res.json(
     prepared.map(q => ({
       q: q.q,
@@ -478,76 +553,160 @@ app.get("/api/questions", (req, res) => {
 // ===== NỘP TRẮC NGHIỆM =====
 app.post("/api/submit", (req, res) => {
   const { name, answers } = req.body;
+  
+  if (!name || !answers) {
+    return res.status(400).json({ error: "Thiếu dữ liệu" });
+  }
+
   const corrects = activeCorrects[name];
 
   if (!corrects)
-    return res.status(400).json({ error: "NO_EXAM" });
+    return res.status(400).json({ error: "NO_EXAM", message: "Không tìm thấy bài thi của thí sinh" });
 
+  if (answers.length !== corrects.length) {
+    return res.status(400).json({ 
+      error: "INVALID_ANSWERS", 
+      message: `Số câu trả lời (${answers.length}) không khớp với số câu hỏi (${corrects.length})` 
+    });
+  }
+
+  // Tính điểm
   let score = 0;
   answers.forEach((a, i) => {
     if (a === corrects[i]) score++;
   });
 
+  // Lưu trạng thái
   activeAnswers[name] = answers;
   activeScores[name] = score;
 
-  res.json({ ok: true, score });
+  res.json({ 
+    ok: true, 
+    score,
+    total: corrects.length,
+    correct: score,
+    incorrect: corrects.length - score
+  });
 });
 
 // ===== NỘP TỰ LUẬN =====
 app.post("/api/submit-essay", async (req, res) => {
   const { name, essay } = req.body;
-  if (finishedUsers.has(name)) return res.json({ ok: true });
+  
+  if (!name) {
+    return res.status(400).json({ error: "Thiếu tên thí sinh" });
+  }
+
+  // Nếu thí sinh đã hoàn thành (có thể do vi phạm hoặc nộp rồi)
+  if (finishedUsers.has(name)) {
+    return res.status(400).json({ 
+      error: "ALREADY_FINISHED", 
+      message: "Thí sinh đã hoàn thành bài thi" 
+    });
+  }
 
   const answers = activeAnswers[name] || [];
   const corrects = activeCorrects[name] || [];
   const score = activeScores[name] || 0;
   const questions = activeQuestions[name] || [];
+  
+  if (!corrects.length) {
+    return res.status(400).json({ 
+      error: "NO_EXAM", 
+      message: "Không tìm thấy bài thi của thí sinh" 
+    });
+  }
+
   const pass = score >= 8 ? "ĐẬU" : "RỚT";
   const time = new Date().toLocaleString("vi-VN");
 
-  const mcFormatted = formatMCAnswers(answers, corrects);
-
+  // Gửi kết quả lên Discord
   try {
     await sendExamResult({
       name,
       score,
+      total: corrects.length,
       pass,
       questions,
       answers,
-      essay
+      essay: essay || "Không có"
     });
   } catch (err) {
-    console.error("❌ GHI SHEET LỖI:", err.message);
+    console.error("❌ Lỗi gửi Discord:", err.message);
+    // Vẫn tiếp tục xử lý, không để lỗi Discord làm gián đoạn
   }
 
-  results.push({ name, score, result: pass, time });
+  // Lưu kết quả
+  results.push({ 
+    name, 
+    score, 
+    total: corrects.length,
+    result: pass, 
+    time 
+  });
 
   logs.push({
-    type: "SUBMIT",
+    type: "SUBMIT_ESSAY",
     name,
     score,
+    total: corrects.length,
+    pass,
     time
   });
 
+  // Dọn dẹp
   finishedUsers.add(name);
   delete activeCorrects[name];
   delete activeAnswers[name];
   delete activeScores[name];
+  delete activeQuestions[name];
 
-  res.json({ ok: true });
-});
-
-// ===== DASHBOARD (FIX 404 + 500) =====
-app.get("/api/dashboard", (req, res) => {
-  res.json({
-    examStarted,
-    results,
-    logs
+  res.json({ 
+    ok: true,
+    score,
+    total: corrects.length,
+    pass
   });
 });
 
-/* ================= START ================= */
+// ===== LẤY KẾT QUẢ CÁ NHÂN =====
+app.get("/api/result", (req, res) => {
+  const name = req.query.name;
+  
+  if (!name) {
+    return res.status(400).json({ error: "Thiếu tên thí sinh" });
+  }
+
+  const result = results.find(r => r.name === name);
+  
+  if (!result) {
+    return res.status(404).json({ error: "Không tìm thấy kết quả" });
+  }
+
+  res.json(result);
+});
+
+// ===== DASHBOARD =====
+app.get("/api/dashboard", (req, res) => {
+  res.json({
+    examStarted,
+    totalCandidates: results.length,
+    passedCandidates: results.filter(r => r.result === "ĐẬU").length,
+    failedCandidates: results.filter(r => r.result === "RỚT").length,
+    violationCandidates: results.filter(r => r.result === "VI PHẠM").length,
+    results: results.sort((a, b) => new Date(b.time) - new Date(a.time)),
+    logs: logs.slice(-50) // Chỉ lấy 50 log gần nhất để tránh quá tải
+  });
+});
+
+// ===== XÓA LOGS =====
+app.post("/api/clear-logs", (req, res) => {
+  logs.length = 0;
+  res.json({ ok: true });
+});
+
+/* ================= START SERVER ================= */
 app.listen(PORT, () => {
-  console.log("✅ Server chạy tại http://localhost:" + PORT);
+  console.log("✅ Server FTO Exam đang chạy tại http://localhost:" + PORT);
+  console.log("📝 Dashboard: http://localhost:" + PORT + "/api/dashboard");
 });
