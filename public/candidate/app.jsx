@@ -1,6 +1,5 @@
 const { useState, useEffect, useRef } = React;
 
-// Hàm vẽ text wrap trên canvas
 function drawWrap(ctx, text, x, y, maxW, lh) {
     const words = text.split(" ");
     let line = "";
@@ -32,7 +31,7 @@ function App() {
     const answerBoxes = useRef([]);
 
     const [name, setName] = useState("");
-    const [stage, setStage] = useState("LOGIN"); // LOGIN | WAIT | EXAM | ESSAY | SUBMITTED | VIOLATION
+    const [stage, setStage] = useState("LOGIN");
     const [error, setError] = useState("");
 
     const [questions, setQuestions] = useState([]);
@@ -46,8 +45,8 @@ function App() {
     const [essayQuestion, setEssayQuestion] = useState("");
 
     const [violationReason, setViolationReason] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false); // THÊM: cờ đang nộp bài
 
-    /* ===== DANH SÁCH CÂU TỰ LUẬN ===== */
     const essayQuestions = [
         `Bạn đang trong ca trực tuần tra bắn tốc độ tại tuyến đường chính.
 Khi đang xử lý vi phạm thì có lệnh khẩn cấp yêu cầu hỗ trợ.
@@ -64,7 +63,11 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
 
     /* ================= GIAN LẬN ================= */
     function violation(reason) {
-        if (stage !== "EXAM" && stage !== "ESSAY") return;
+        // KHÔNG báo vi phạm nếu đang trong quá trình nộp bài
+        if (isSubmitting) return;
+        
+        // KHÔNG báo vi phạm nếu đã nộp bài xong
+        if (stage === "SUBMITTED" || stage === "VIOLATION") return;
 
         fetch("/api/violation", {
             method: "POST",
@@ -72,9 +75,12 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
             body: JSON.stringify({ name, reason })
         }).catch(err => console.error("Lỗi báo vi phạm:", err));
 
-        if (document.fullscreenElement) {
-            document.exitFullscreen().catch(() => {});
-        }
+        // Thoát fullscreen an toàn
+        try {
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+        } catch (err) {}
 
         setViolationReason(reason);
         setStage("VIOLATION");
@@ -82,14 +88,24 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
 
     /* ================= ANTI CHEAT ================= */
     useEffect(() => {
+        // CHỈ chống gian lận khi đang làm bài HOẶC đang viết tự luận
         if (stage !== "EXAM" && stage !== "ESSAY") return;
+        
+        // Nếu đang nộp bài thì không kiểm tra
+        if (isSubmitting) return;
 
         const onBlur = () => violation("Thoát khỏi cửa sổ trình duyệt");
+        
         const onVis = () => {
-            if (document.hidden) violation("Chuyển tab hoặc ẩn cửa sổ");
+            if (document.hidden && !isSubmitting) {
+                violation("Chuyển tab hoặc ẩn cửa sổ");
+            }
         };
+        
         const onFs = () => {
-            if (!document.fullscreenElement && (stage === "EXAM" || stage === "ESSAY")) {
+            // CHỈ báo vi phạm khi đang làm bài trắc nghiệm
+            // KHI ĐANG TỰ LUẬN: không báo vi phạm khi thoát fullscreen
+            if (stage === "EXAM" && !document.fullscreenElement && !isSubmitting) {
                 violation("Thoát chế độ toàn màn hình");
             }
         };
@@ -100,7 +116,6 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
         };
 
         const onKeyDown = (e) => {
-            // Chặn F12, Ctrl+Shift+I, Ctrl+U
             if (
                 e.key === "F12" ||
                 (e.ctrlKey && e.shiftKey && e.key === "I") ||
@@ -126,7 +141,7 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
             document.removeEventListener("contextmenu", onContextMenu);
             document.removeEventListener("keydown", onKeyDown);
         };
-    }, [stage]);
+    }, [stage, isSubmitting]); // THÊM isSubmitting vào dependencies
 
     /* ================= TIMER TRẮC NGHIỆM ================= */
     useEffect(() => {
@@ -172,7 +187,6 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
 
             setStage("WAIT");
 
-            // Kiểm tra trạng thái kỳ thi
             const checkInterval = setInterval(async () => {
                 try {
                     const s = await fetch("/api/exam/status").then(r => r.json());
@@ -185,7 +199,6 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 }
             }, 2000);
 
-            // Cleanup nếu component unmount
             return () => clearInterval(checkInterval);
         } catch (err) {
             console.error("Lỗi join:", err);
@@ -232,6 +245,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
 
     /* ================= SUBMIT MC ================= */
     async function submitMC(finalAnswers) {
+        setIsSubmitting(true); // BẬT cờ đang nộp bài
+        
         try {
             await fetch("/api/submit", {
                 method: "POST",
@@ -242,19 +257,32 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 })
             });
 
+            // THOÁT FULLSCREEN TRƯỚC khi chuyển sang tự luận
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                }
+            } catch (err) {
+                console.warn("Không thể thoát fullscreen:", err);
+            }
+
             // Chọn câu tự luận ngẫu nhiên
             const q = essayQuestions[Math.floor(Math.random() * essayQuestions.length)];
             setEssayQuestion(q);
             setEssayTime(600);
             setStage("ESSAY");
+            setIsSubmitting(false); // TẮT cờ đang nộp bài
         } catch (err) {
             console.error("Lỗi nộp trắc nghiệm:", err);
             alert("Có lỗi khi nộp bài. Vui lòng thử lại!");
+            setIsSubmitting(false);
         }
     }
 
     /* ================= SUBMIT ESSAY ================= */
     async function submitEssay() {
+        setIsSubmitting(true); // BẬT cờ đang nộp bài
+        
         try {
             await fetch("/api/submit-essay", {
                 method: "POST",
@@ -266,14 +294,21 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 })
             });
 
-            if (document.fullscreenElement) {
-                await document.exitFullscreen().catch(() => {});
+            // Thoát fullscreen nếu đang bật (an toàn)
+            try {
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen();
+                }
+            } catch (err) {
+                console.warn("Không thể thoát fullscreen:", err);
             }
 
             setStage("SUBMITTED");
+            setIsSubmitting(false); // TẮT cờ đang nộp bài
         } catch (err) {
             console.error("Lỗi nộp tự luận:", err);
             alert("Có lỗi khi nộp bài tự luận. Vui lòng thử lại!");
+            setIsSubmitting(false);
         }
     }
 
@@ -284,7 +319,6 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
         setAnswers(updatedAnswers);
         
         if (index + 1 >= questions.length) {
-            // Đã hết câu hỏi -> nộp bài
             submitMC(updatedAnswers);
         } else {
             setSelected(null);
@@ -304,7 +338,6 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
 
-        // Kiểm tra click vào answer boxes
         for (const b of answerBoxes.current) {
             if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
                 setSelected(b.index);
@@ -312,7 +345,6 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
             }
         }
 
-        // Kiểm tra click vào nút "CÂU TIẾP THEO"
         if (x >= 650 && x <= 850 && y >= 470 && y <= 520 && selected !== null) {
             handleNext();
         }
@@ -329,53 +361,37 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
         const ctx = canvas.getContext("2d");
         answerBoxes.current = [];
 
-        // Clear canvas
         ctx.clearRect(0, 0, 900, 540);
-
-        // Background
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, 900, 540);
 
-        // Header
+        // Header background
         ctx.fillStyle = "#0f172a";
-        ctx.fillRect(0, 0, 900, 60);
+        ctx.fillRect(0, 0, 900, 65);
 
         // Title
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 22px 'Segoe UI', Arial, sans-serif";
-        ctx.fillText(`Câu ${index + 1}/${questions.length}`, 30, 40);
+        ctx.fillText(`Câu ${index + 1}/${questions.length}`, 30, 42);
 
         // Timer
         ctx.fillStyle = time <= 10 ? "#ef4444" : "#22c55e";
         ctx.font = "bold 20px 'Segoe UI', Arial, sans-serif";
         ctx.textAlign = "right";
-        ctx.fillText(`⏱ ${time}s`, 870, 40);
+        ctx.fillText(`⏱ ${time}s`, 870, 42);
         ctx.textAlign = "left";
 
-        // Progress bar
-        const progressWidth = 840;
-        const progressHeight = 6;
-        const progressY = 55;
-        const progress = ((index + 1) / questions.length) * progressWidth;
-
-        ctx.fillStyle = "#e2e8f0";
-        ctx.fillRect(30, progressY, progressWidth, progressHeight);
-        
-        ctx.fillStyle = "#3b82f6";
-        ctx.fillRect(30, progressY, progress, progressHeight);
-
-        // Question
+        // Question text
         ctx.fillStyle = "#0f172a";
         ctx.font = "18px 'Segoe UI', Arial, sans-serif";
-        let yEnd = drawWrap(ctx, questions[index].q, 30, 100, 840, 30);
-        let y = yEnd + 25;
+        let yEnd = drawWrap(ctx, questions[index].q, 30, 95, 840, 28);
+        let y = yEnd + 20;
 
         // Choices
         questions[index].choices.forEach((c, i) => {
             const h = 55;
             const boxY = y;
             
-            // Box background
             if (selected === i) {
                 ctx.fillStyle = "#eff6ff";
                 ctx.fillRect(30, y, 840, h);
@@ -390,25 +406,22 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
             
             ctx.strokeRect(30, y, 840, h);
 
-            // Letter circle
-            const circleX = 55;
+            // Letter badge
+            const circleX = 58;
             const circleY = y + h / 2;
-            const circleRadius = 14;
 
             ctx.beginPath();
-            ctx.arc(circleX, circleY, circleRadius, 0, 2 * Math.PI);
+            ctx.arc(circleX, circleY, 15, 0, 2 * Math.PI);
             
             if (selected === i) {
                 ctx.fillStyle = "#3b82f6";
-                ctx.fill();
-                ctx.fillStyle = "#ffffff";
             } else {
                 ctx.fillStyle = "#e2e8f0";
-                ctx.fill();
-                ctx.fillStyle = "#0f172a";
             }
+            ctx.fill();
             
-            ctx.font = "bold 14px 'Segoe UI', Arial, sans-serif";
+            ctx.fillStyle = selected === i ? "#ffffff" : "#0f172a";
+            ctx.font = "bold 15px 'Segoe UI', Arial, sans-serif";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(String.fromCharCode(65 + i), circleX, circleY);
@@ -418,52 +431,35 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
             // Choice text
             ctx.fillStyle = "#0f172a";
             ctx.font = "16px 'Segoe UI', Arial, sans-serif";
-            drawWrap(ctx, c, 85, y + 18, 770, 24);
+            drawWrap(ctx, c, 85, y + 20, 770, 22);
 
             answerBoxes.current.push({ x: 30, y: boxY, w: 840, h, index: i });
-            y += 75;
+            y += 72;
         });
 
         // Next button
         const btnX = 650;
-        const btnY = 470;
+        const btnY = 480;
         const btnW = 220;
-        const btnH = 50;
+        const btnH = 45;
 
         if (selected !== null) {
             ctx.fillStyle = "#3b82f6";
-            ctx.shadowColor = "rgba(59, 130, 246, 0.3)";
-            ctx.shadowBlur = 10;
         } else {
             ctx.fillStyle = "#94a3b8";
-            ctx.shadowColor = "transparent";
-            ctx.shadowBlur = 0;
         }
-        
-        // Rounded rectangle button
-        const radius = 8;
-        ctx.beginPath();
-        ctx.moveTo(btnX + radius, btnY);
-        ctx.lineTo(btnX + btnW - radius, btnY);
-        ctx.quadraticCurveTo(btnX + btnW, btnY, btnX + btnW, btnY + radius);
-        ctx.lineTo(btnX + btnW, btnY + btnH - radius);
-        ctx.quadraticCurveTo(btnX + btnW, btnY + btnH, btnX + btnW - radius, btnY + btnH);
-        ctx.lineTo(btnX + radius, btnY + btnH);
-        ctx.quadraticCurveTo(btnX, btnY + btnH, btnX, btnY + btnH - radius);
-        ctx.lineTo(btnX, btnY + radius);
-        ctx.quadraticCurveTo(btnX, btnY, btnX + radius, btnY);
-        ctx.closePath();
-        ctx.fill();
-        ctx.shadowBlur = 0;
 
-        // Button text
+        ctx.beginPath();
+        ctx.roundRect(btnX, btnY, btnW, btnH, 8);
+        ctx.fill();
+
         ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 18px 'Segoe UI', Arial, sans-serif";
+        ctx.font = "bold 17px 'Segoe UI', Arial, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         
         if (index + 1 >= questions.length) {
-            ctx.fillText("NỘP BÀI", btnX + btnW / 2, btnY + btnH / 2);
+            ctx.fillText("📝 NỘP BÀI", btnX + btnW / 2, btnY + btnH / 2);
         } else {
             ctx.fillText("CÂU TIẾP THEO →", btnX + btnW / 2, btnY + btnH / 2);
         }
@@ -471,18 +467,9 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
         ctx.textAlign = "left";
         ctx.textBaseline = "alphabetic";
 
-        // Hướng dẫn
-        if (selected === null) {
-            ctx.fillStyle = "#94a3b8";
-            ctx.font = "14px 'Segoe UI', Arial, sans-serif";
-            ctx.textAlign = "right";
-            ctx.fillText("👆 Chọn đáp án để tiếp tục", 640, 460);
-            ctx.textAlign = "left";
-        }
-
     }, [stage, index, selected, time, questions]);
 
-    /* ================= RENDER UI ================= */
+    /* ================= RENDER ================= */
     if (stage === "LOGIN") {
         return (
             <div style={{
@@ -490,7 +477,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "20px"
+                padding: "20px",
+                background: "#020617"
             }}>
                 <div style={{
                     background: "#1e293b",
@@ -511,7 +499,7 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                         WebkitBackgroundClip: "text",
                         WebkitTextFillColor: "transparent"
                     }}>
-                        THI ONLINE
+                        THI ONLINE FTO
                     </h1>
                     <p style={{ color: "#94a3b8", marginBottom: "2rem" }}>
                         Nhập họ tên để bắt đầu bài thi
@@ -583,7 +571,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "20px"
+                padding: "20px",
+                background: "#020617"
             }}>
                 <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>⏳</div>
                 <h2 style={{ color: "#e2e8f0", marginBottom: "0.5rem" }}>
@@ -603,7 +592,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "40px 20px"
+                padding: "40px 20px",
+                background: "#020617"
             }}>
                 <div style={{
                     width: "100%",
@@ -710,7 +700,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "20px"
+                padding: "20px",
+                background: "#020617"
             }}>
                 <div style={{ fontSize: "5rem", marginBottom: "1rem" }}>✅</div>
                 <h2 style={{
@@ -736,7 +727,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "20px"
+                padding: "20px",
+                background: "#020617"
             }}>
                 <div style={{ fontSize: "5rem", marginBottom: "1rem" }}>❌</div>
                 <h2 style={{
@@ -754,7 +746,7 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
         );
     }
 
-    // EXAM stage - Canvas
+    // EXAM stage
     return (
         <div style={{
             minHeight: "100vh",
