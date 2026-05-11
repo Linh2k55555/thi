@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { appendExamResult } from "./googleSheets.js";
+import { sendExamResult } from "./discordWebhook.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,28 +15,28 @@ app.use(express.static(path.join(__dirname, "public")));
 
 /* ================= TIỆN ÍCH ================= */
 function shuffleArray(arr) {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 function formatMCAnswers(answers, corrects) {
-    return answers.map((a, i) => {
-        const letter = String.fromCharCode(65 + a);
-        return `${letter} ${a === corrects[i] ? "✔" : "✘"}`;
-    });
+  return answers.map((a, i) => {
+    const letter = String.fromCharCode(65 + a);
+    return `${letter} ${a === corrects[i] ? "✔" : "✘"}`;
+  });
 }
 
 /* ================= TRẠNG THÁI ================= */
 let examStarted = false;
 
 const activeCorrects = {}; // name -> correct[]
-const activeAnswers  = {}; // name -> answers[]
-const activeScores   = {}; // name -> score
-const finishedUsers  = new Set();
+const activeAnswers = {}; // name -> answers[]
+const activeScores = {}; // name -> score
+const finishedUsers = new Set();
 
 /* ===== LOG + DASHBOARD ===== */
 const logs = [];
@@ -323,211 +323,231 @@ const QUESTION_BANK = [
 ];
 /* ================= BỘ ĐỀ NGHIỆP VỤ (10 CÂU) ================= */
 const QUESTION_PATROL = [
-  { q:"Khi tiếp cận xe nghi vấn, tại sao cảnh sát được yêu cầu đứng ở vị trí cột B?",
-    choices:["Nhìn biển số","Tránh cửa xe và quan sát tốt","Đối tượng thấy mặt","Chuẩn bị gậy"],
-    answer:1 },
-  { q:"Những vật dụng nào là vật dụng nghi vấn?",
-    choices:["Sách báo","Đồ ăn","Vũ khí, vết máu, mặt nạ, găng tay","Giấy tờ"],
-    answer:2 },
-  { q:"Trước khi xuống xe tiếp cận, hành động ưu tiên?",
-    choices:["Kiểm tra súng","Báo radio + yêu cầu hỗ trợ","Ra lệnh giơ tay","Chỉnh camera"],
-    answer:1 },
-  { q:"Mục đích hỏi “Anh/Chị vừa đi từ đâu tới?”",
-    choices:["Xã giao","Đối chiếu hướng di chuyển","Ghi biên bản","Kiểm tra trí nhớ"],
-    answer:1 },
-  { q:"Câu hỏi thăm dò lý do vội vã phù hợp?",
-    choices:["Chạy như ăn cướp?","Biết là vi phạm không?",
+  {
+    q: "Khi tiếp cận xe nghi vấn, tại sao cảnh sát được yêu cầu đứng ở vị trí cột B?",
+    choices: ["Nhìn biển số", "Tránh cửa xe và quan sát tốt", "Đối tượng thấy mặt", "Chuẩn bị gậy"],
+    answer: 1
+  },
+  {
+    q: "Những vật dụng nào là vật dụng nghi vấn?",
+    choices: ["Sách báo", "Đồ ăn", "Vũ khí, vết máu, mặt nạ, găng tay", "Giấy tờ"],
+    answer: 2
+  },
+  {
+    q: "Trước khi xuống xe tiếp cận, hành động ưu tiên?",
+    choices: ["Kiểm tra súng", "Báo radio + yêu cầu hỗ trợ", "Ra lệnh giơ tay", "Chỉnh camera"],
+    answer: 1
+  },
+  {
+    q: "Mục đích hỏi “Anh/Chị vừa đi từ đâu tới?”",
+    choices: ["Xã giao", "Đối chiếu hướng di chuyển", "Ghi biên bản", "Kiểm tra trí nhớ"],
+    answer: 1
+  },
+  {
+    q: "Câu hỏi thăm dò lý do vội vã phù hợp?",
+    choices: ["Chạy như ăn cướp?", "Biết là vi phạm không?",
       "Có chuyện gì khiến anh/chị phải di chuyển nhanh trong khu vực này?",
       "Anh mang hàng cấm?"],
-    answer:2 },
-  { q:"Khi kiểm tra MDT, thông tin quan trọng nhất?",
-    choices:["Lịch sử phạt","Tiền án bạo lực/vũ khí","Ngày sinh","Màu xe"],
-    answer:1 },
-  { q:"Lời thoại chuyên nghiệp khi kiểm tra xe?",
-    choices:["Tôi nghi anh là hung thủ",
+    answer: 2
+  },
+  {
+    q: "Khi kiểm tra MDT, thông tin quan trọng nhất?",
+    choices: ["Lịch sử phạt", "Tiền án bạo lực/vũ khí", "Ngày sinh", "Màu xe"],
+    answer: 1
+  },
+  {
+    q: "Lời thoại chuyên nghiệp khi kiểm tra xe?",
+    choices: ["Tôi nghi anh là hung thủ",
       "Vì khu vực vừa xảy ra trọng án, tôi cần kiểm tra xe để đảm bảo an toàn",
       "Luật server cho phép",
       "Xuống xe ngay"],
-    answer:1 },
-  { q:"Nếu xe trùng mô tả hiện trường, bước tiếp theo?",
-    choices:["Hỏi chuyện kéo dài","Khống chế và áp giải","Ghi biển số","Gọi người thân"],
-    answer:1 },
-  { q:"Tài xế liên tục nhìn gương chiếu hậu ám chỉ?",
-    choices:["Chỉnh gương","Lo lắng bị áp sát/tẩu thoát","Lái cẩn thận","Đợi người"],
-    answer:1 },
-  { q:"Nếu tài xế là nhân chứng hoảng loạn?",
-    choices:["Cho đi ngay","Thu thập thông tin nhân chứng",
-      "Phạt cho chừa","Yêu cầu về đồn sau"],
-    answer:1 }
+    answer: 1
+  },
+  {
+    q: "Nếu xe trùng mô tả hiện trường, bước tiếp theo?",
+    choices: ["Hỏi chuyện kéo dài", "Khống chế và áp giải", "Ghi biển số", "Gọi người thân"],
+    answer: 1
+  },
+  {
+    q: "Tài xế liên tục nhìn gương chiếu hậu ám chỉ?",
+    choices: ["Chỉnh gương", "Lo lắng bị áp sát/tẩu thoát", "Lái cẩn thận", "Đợi người"],
+    answer: 1
+  },
+  {
+    q: "Nếu tài xế là nhân chứng hoảng loạn?",
+    choices: ["Cho đi ngay", "Thu thập thông tin nhân chứng",
+      "Phạt cho chừa", "Yêu cầu về đồn sau"],
+    answer: 1
+  }
 ];
 
 
 // ===== GIÁM KHẢO START =====
 app.post("/api/exam/start", (req, res) => {
-    examStarted = true;
+  examStarted = true;
 
-    logs.push({
-        type: "EXAM_START",
-        time: new Date().toLocaleString("vi-VN")
-    });
+  logs.push({
+    type: "EXAM_START",
+    time: new Date().toLocaleString("vi-VN")
+  });
 
-    res.json({ ok: true });
+  res.json({ ok: true });
 });
 
 // ===== TRẠNG THÁI =====
 app.get("/api/exam/status", (req, res) => {
-    res.json({ started: examStarted });
+  res.json({ started: examStarted });
 });
 
 // ===== THÍ SINH VÀO =====
 app.post("/api/join", (req, res) => {
-    logs.push({
-        type: "JOIN",
-        name: req.body.name,
-        time: new Date().toLocaleString("vi-VN")
-    });
+  logs.push({
+    type: "JOIN",
+    name: req.body.name,
+    time: new Date().toLocaleString("vi-VN")
+  });
 
-    res.json({ ok: true });
+  res.json({ ok: true });
 });
 
 // ===== VI PHẠM =====
 app.post("/api/violation", (req, res) => {
-    const { name, reason } = req.body;
+  const { name, reason } = req.body;
 
-    logs.push({
-        type: "VIOLATION",
-        name,
-        reason,
-        time: new Date().toLocaleString("vi-VN")
-    });
+  logs.push({
+    type: "VIOLATION",
+    name,
+    reason,
+    time: new Date().toLocaleString("vi-VN")
+  });
 
-    finishedUsers.add(name);
-    res.json({ ok: true });
+  finishedUsers.add(name);
+  res.json({ ok: true });
 });
 
 // ===== LẤY ĐỀ =====
 app.get("/api/questions", (req, res) => {
-    if (!examStarted)
-        return res.status(403).json({ error: "NOT_STARTED" });
+  if (!examStarted)
+    return res.status(403).json({ error: "NOT_STARTED" });
 
-    const name = req.query.name;
-    if (!name)
-        return res.status(400).json({ error: "NO_NAME" });
+  const name = req.query.name;
+  if (!name)
+    return res.status(400).json({ error: "NO_NAME" });
 
-    if (finishedUsers.has(name))
-        return res.status(403).json({ error: "DONE" });
+  if (finishedUsers.has(name))
+    return res.status(403).json({ error: "DONE" });
 
-    const patrolCount = Math.random() < 0.5 ? 2 : 3;
+  const patrolCount = Math.random() < 0.5 ? 2 : 3;
 
-    const picked = shuffleArray([
-        ...shuffleArray(QUESTION_PATROL).slice(0, patrolCount),
-        ...shuffleArray(QUESTION_BANK).slice(0, 10 - patrolCount)
-    ]);
+  const picked = shuffleArray([
+    ...shuffleArray(QUESTION_PATROL).slice(0, patrolCount),
+    ...shuffleArray(QUESTION_BANK).slice(0, 10 - patrolCount)
+  ]);
 
-    const prepared = picked.map(q => {
-        const mixed = shuffleArray(
-            q.choices.map((c, i) => ({
-                text: c,
-                ok: i === q.answer
-            }))
-        );
-
-        return {
-            q: q.q,
-            choices: mixed.map(x => x.text),
-            correct: mixed.findIndex(x => x.ok)
-        };
-    });
-
-    activeCorrects[name] = prepared.map(q => q.correct);
-
-    logs.push({
-        type: "START_EXAM",
-        name,
-        time: new Date().toLocaleString("vi-VN")
-    });
-
-    res.json(
-        prepared.map(q => ({
-            q: q.q,
-            choices: q.choices
-        }))
+  const prepared = picked.map(q => {
+    const mixed = shuffleArray(
+      q.choices.map((c, i) => ({
+        text: c,
+        ok: i === q.answer
+      }))
     );
+
+    return {
+      q: q.q,
+      choices: mixed.map(x => x.text),
+      correct: mixed.findIndex(x => x.ok)
+    };
+  });
+
+  activeCorrects[name] = prepared.map(q => q.correct);
+
+  logs.push({
+    type: "START_EXAM",
+    name,
+    time: new Date().toLocaleString("vi-VN")
+  });
+
+  res.json(
+    prepared.map(q => ({
+      q: q.q,
+      choices: q.choices
+    }))
+  );
 });
 
 // ===== NỘP TRẮC NGHIỆM =====
 app.post("/api/submit", (req, res) => {
-    const { name, answers } = req.body;
-    const corrects = activeCorrects[name];
+  const { name, answers } = req.body;
+  const corrects = activeCorrects[name];
 
-    if (!corrects)
-        return res.status(400).json({ error: "NO_EXAM" });
+  if (!corrects)
+    return res.status(400).json({ error: "NO_EXAM" });
 
-    let score = 0;
-    answers.forEach((a, i) => {
-        if (a === corrects[i]) score++;
-    });
+  let score = 0;
+  answers.forEach((a, i) => {
+    if (a === corrects[i]) score++;
+  });
 
-    activeAnswers[name] = answers;
-    activeScores[name] = score;
+  activeAnswers[name] = answers;
+  activeScores[name] = score;
 
-    res.json({ ok: true, score });
+  res.json({ ok: true, score });
 });
 
 // ===== NỘP TỰ LUẬN =====
 app.post("/api/submit-essay", async (req, res) => {
-    const { name, essay } = req.body;
-    if (finishedUsers.has(name)) return res.json({ ok: true });
+  const { name, essay } = req.body;
+  if (finishedUsers.has(name)) return res.json({ ok: true });
 
-    const answers  = activeAnswers[name] || [];
-    const corrects = activeCorrects[name] || [];
-    const score    = activeScores[name] || 0;
+  const answers = activeAnswers[name] || [];
+  const corrects = activeCorrects[name] || [];
+  const score = activeScores[name] || 0;
+  const questions = activeQuestions[name] || [];
+  const pass = score >= 8 ? "ĐẬU" : "RỚT";
+  const time = new Date().toLocaleString("vi-VN");
 
-    const pass = score >= 8 ? "ĐẬU" : "RỚT";
-    const time = new Date().toLocaleString("vi-VN");
+  const mcFormatted = formatMCAnswers(answers, corrects);
 
-    const mcFormatted = formatMCAnswers(answers, corrects);
-
-    try {
-        await appendExamResult([
-            time,
-            name,
-            score,
-            pass,
-            ...mcFormatted,
-            essay
-        ]);
-    } catch (err) {
-        console.error("❌ GHI SHEET LỖI:", err.message);
-    }
-
-    results.push({ name, score, result: pass, time });
-
-    logs.push({
-        type: "SUBMIT",
-        name,
-        score,
-        time
+  try {
+    await sendExamResult({
+      name,
+      score,
+      pass,
+      questions,
+      answers,
+      essay
     });
+  } catch (err) {
+    console.error("❌ GHI SHEET LỖI:", err.message);
+  }
 
-    finishedUsers.add(name);
-    delete activeCorrects[name];
-    delete activeAnswers[name];
-    delete activeScores[name];
+  results.push({ name, score, result: pass, time });
 
-    res.json({ ok: true });
+  logs.push({
+    type: "SUBMIT",
+    name,
+    score,
+    time
+  });
+
+  finishedUsers.add(name);
+  delete activeCorrects[name];
+  delete activeAnswers[name];
+  delete activeScores[name];
+
+  res.json({ ok: true });
 });
 
 // ===== DASHBOARD (FIX 404 + 500) =====
 app.get("/api/dashboard", (req, res) => {
-    res.json({
-        examStarted,
-        results,
-        logs
-    });
+  res.json({
+    examStarted,
+    results,
+    logs
+  });
 });
 
 /* ================= START ================= */
 app.listen(PORT, () => {
-    console.log("✅ Server chạy tại http://localhost:" + PORT);
+  console.log("✅ Server chạy tại http://localhost:" + PORT);
 });
