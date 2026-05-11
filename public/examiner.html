@@ -1,132 +1,694 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<title>FTO – Dashboard</title>
-<style>
-body {
-    font-family: Arial, sans-serif;
-    background: #f1f5f9;
-    padding: 20px;
-}
-h1 { margin-bottom: 10px; }
-button {
-    padding: 10px 20px;
-    font-size: 16px;
-    background: #2563eb;
-    color: #fff;
-    border: none;
-    cursor: pointer;
-    margin-bottom: 20px;
-}
-button:disabled {
-    background: #94a3b8;
-    cursor: not-allowed;
-}
-table {
-    border-collapse: collapse;
-    width: 100%;
-    background: #fff;
-    margin-bottom: 30px;
-}
-th, td {
-    border: 1px solid #cbd5e1;
-    padding: 8px;
-    text-align: left;
-    font-size: 14px;
-}
-th { background: #e2e8f0; }
-.success { color: green; font-weight: bold; }
-.danger { color: red; font-weight: bold; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTO - Dashboard Giám Khảo</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --dark: #0f172a;
+            --darker: #020617;
+            --card: #1e293b;
+            --card-hover: #334155;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--darker);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(34, 197, 94, 0.08) 0%, transparent 50%);
+        }
+
+        /* Header */
+        .header {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--primary), #1d4ed8);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .header-title h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, var(--success), #16a34a);
+            color: white;
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+        }
+
+        .btn-start:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+        }
+
+        .btn-start:disabled {
+            background: #475569;
+            box-shadow: none;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .btn-reset {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-reset:hover {
+            background: rgba(239, 68, 68, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .btn-refresh {
+            background: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-refresh:hover {
+            background: rgba(59, 130, 246, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .stat-value.total { color: #60a5fa; }
+        .stat-value.passed { color: var(--success); }
+        .stat-value.failed { color: var(--danger); }
+        .stat-value.violation { color: var(--warning); }
+
+        .stat-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-live {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        .status-waiting {
+            background: rgba(148, 163, 184, 0.1);
+            color: var(--text-muted);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Tables */
+        .section {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .table-container::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            background: #0f172a;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 2px solid var(--border);
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+        }
+
+        tbody tr {
+            transition: background 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-pass {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .badge-fail {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-violation {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--card);
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            border-left: 4px solid var(--success);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast-error {
+            border-left-color: var(--danger);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header-actions {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+
+            .btn {
+                flex: 1;
+                justify-content: center;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
 
-<h1>👨‍⚖️ DASHBOARD GIÁM KHẢO</h1>
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
 
-<button id="startBtn" onclick="startExam()">🚀 BẮT ĐẦU KỲ THI</button>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">👨‍⚖️</div>
+            <div class="header-title">
+                <h1>Dashboard Giám Khảo</h1>
+                <p>Hệ thống quản lý kỳ thi FTO</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <span class="status-badge status-waiting" id="statusBadge">
+                <span class="live-dot"></span> Đang chờ
+            </span>
+            <button class="btn btn-start" id="startBtn" onclick="startExam()">
+                🚀 Bắt đầu kỳ thi
+            </button>
+            <button class="btn btn-reset" onclick="resetExam()">
+                🔄 Reset
+            </button>
+            <button class="btn btn-refresh" onclick="load()">
+                🔃 Làm mới
+            </button>
+        </div>
+    </div>
 
-<h2>📋 Kết quả thí sinh</h2>
-<table id="results"></table>
+    <!-- Stats Overview -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-label">Tổng thí sinh</div>
+            <div class="stat-value total" id="totalCandidates">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-label">Đậu</div>
+            <div class="stat-value passed" id="passedCandidates">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">❌</div>
+            <div class="stat-label">Rớt</div>
+            <div class="stat-value failed" id="failedCandidates">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⚠️</div>
+            <div class="stat-label">Vi phạm</div>
+            <div class="stat-value violation" id="violationCandidates">0</div>
+        </div>
+    </div>
 
-<h2>🚨 Log gian lận</h2>
-<table id="logs"></table>
+    <!-- Results Table -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-title">📋 Kết quả thí sinh</div>
+            <span id="resultCount" style="color: var(--text-muted); font-size: 0.9rem;">0 thí sinh</span>
+        </div>
+        <div class="table-container">
+            <table id="results">
+                <thead>
+                    <tr>
+                        <th>Họ tên</th>
+                        <th>Điểm</th>
+                        <th>Kết quả</th>
+                        <th>Thời gian</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
 
-<script>
-const API_BASE = location.origin;
-const resultsTable = document.getElementById("results");
-const logsTable = document.getElementById("logs");
-const startBtn = document.getElementById("startBtn");
+    <!-- Logs Table -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-title">🚨 Nhật ký hệ thống</div>
+            <button class="btn btn-reset" style="padding: 8px 16px; font-size: 0.85rem;" onclick="clearLogs()">
+                🗑️ Xóa logs
+            </button>
+        </div>
+        <div class="table-container">
+            <table id="logs">
+                <thead>
+                    <tr>
+                        <th>Họ tên</th>
+                        <th>Loại sự kiện</th>
+                        <th>Chi tiết</th>
+                        <th>Thời gian</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
 
-/* ================= LOAD DASHBOARD ================= */
-async function load() {
-    try {
-        const res = await fetch(API_BASE + "/api/dashboard");
-        if (!res.ok) throw new Error("HTTP " + res.status);
+    <script>
+        const API_BASE = location.origin;
+        const resultsTable = document.getElementById("results").querySelector("tbody");
+        const logsTable = document.getElementById("logs").querySelector("tbody");
+        const startBtn = document.getElementById("startBtn");
+        const statusBadge = document.getElementById("statusBadge");
+        const toast = document.getElementById("toast");
 
-        const data = await res.json();
+        /* ================= LOAD DASHBOARD ================= */
+        async function load() {
+            try {
+                const res = await fetch(API_BASE + "/api/dashboard");
+                if (!res.ok) throw new Error("HTTP " + res.status);
 
-        const results = Array.isArray(data.results) ? data.results : [];
-        const logs = Array.isArray(data.logs) ? data.logs : [];
+                const data = await res.json();
 
-        if (data.examStarted) {
-            startBtn.disabled = true;
-            startBtn.innerText = "⏳ Kỳ thi đang diễn ra";
+                const results = Array.isArray(data.results) ? data.results : [];
+                const logs = Array.isArray(data.logs) ? data.logs : [];
+
+                // Update exam status
+                if (data.examStarted) {
+                    startBtn.disabled = true;
+                    startBtn.innerHTML = "⏳ Kỳ thi đang diễn ra";
+                    statusBadge.className = "status-badge status-live";
+                    statusBadge.innerHTML = '<span class="live-dot"></span> Trực tiếp';
+                } else {
+                    startBtn.disabled = false;
+                    startBtn.innerHTML = "🚀 Bắt đầu kỳ thi";
+                    statusBadge.className = "status-badge status-waiting";
+                    statusBadge.innerHTML = '<span class="live-dot"></span> Đang chờ';
+                }
+
+                // Update stats
+                document.getElementById("totalCandidates").textContent = data.totalCandidates || 0;
+                document.getElementById("passedCandidates").textContent = data.passedCandidates || 0;
+                document.getElementById("failedCandidates").textContent = data.failedCandidates || 0;
+                document.getElementById("violationCandidates").textContent = data.violationCandidates || 0;
+                document.getElementById("resultCount").textContent = `${data.totalCandidates || 0} thí sinh`;
+
+                // Update results table
+                if (results.length > 0) {
+                    resultsTable.innerHTML = results.map(r => `
+                        <tr>
+                            <td><strong>${escapeHtml(r.name)}</strong></td>
+                            <td>${r.score}/${r.total || 10}</td>
+                            <td>
+                                <span class="badge ${
+                                    r.result === "ĐẬU" ? "badge-pass" : 
+                                    r.result === "VI PHẠM" ? "badge-violation" : 
+                                    "badge-fail"
+                                }">
+                                    ${r.result}
+                                </span>
+                            </td>
+                            <td>${r.time}</td>
+                        </tr>
+                    `).join("");
+                } else {
+                    resultsTable.innerHTML = `
+                        <tr>
+                            <td colspan="4">
+                                <div class="empty-state">
+                                    <div class="empty-icon">📭</div>
+                                    <p>Chưa có thí sinh nào hoàn thành bài thi</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                // Update logs table
+                if (logs.length > 0) {
+                    logsTable.innerHTML = logs.map(l => {
+                        let logType = l.type;
+                        let logClass = "";
+                        
+                        if (l.type === "VIOLATION") {
+                            logClass = "badge-violation";
+                            logType = "⚠️ VI PHẠM";
+                        } else if (l.type === "EXAM_START") {
+                            logClass = "badge-pass";
+                            logType = "🚀 BẮT ĐẦU";
+                        } else if (l.type === "JOIN") {
+                            logClass = "";
+                            logType = "👤 THAM GIA";
+                        } else if (l.type === "START_EXAM") {
+                            logClass = "";
+                            logType = "📝 VÀO THI";
+                        } else if (l.type === "SUBMIT_ESSAY" || l.type === "SUBMIT") {
+                            logClass = "badge-pass";
+                            logType = "✅ NỘP BÀI";
+                        }
+
+                        return `
+                            <tr>
+                                <td><strong>${escapeHtml(l.name || "Hệ thống")}</strong></td>
+                                <td><span class="badge ${logClass}">${logType}</span></td>
+                                <td>${escapeHtml(l.reason || l.score ? `Điểm: ${l.score}/${l.total || 10}` : "")}</td>
+                                <td>${l.time}</td>
+                            </tr>
+                        `;
+                    }).join("");
+                } else {
+                    logsTable.innerHTML = `
+                        <tr>
+                            <td colspan="4">
+                                <div class="empty-state">
+                                    <div class="empty-icon">📋</div>
+                                    <p>Chưa có hoạt động nào</p>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+
+            } catch (err) {
+                console.warn("⚠️ Không kết nối được server", err.message);
+                showToast("Không thể kết nối đến server!", "error");
+            }
         }
 
-        resultsTable.innerHTML = `
-            <tr>
-                <th>Họ tên</th>
-                <th>Điểm</th>
-                <th>Kết quả</th>
-                <th>Thời gian</th>
-            </tr>
-        ` + results.map(r => `
-            <tr>
-                <td>${r.name}</td>
-                <td>${r.score}/10</td>
-                <td class="${r.result === "ĐẬU" ? "success" : "danger"}">
-                    ${r.result}
-                </td>
-                <td>${r.time}</td>
-            </tr>
-        `).join("");
+        /* ================= START EXAM ================= */
+        async function startExam() {
+            if (!confirm("Bạn chắc chắn muốn BẮT ĐẦU kỳ thi?\n\nThí sinh sẽ có thể vào làm bài ngay lập tức.")) return;
 
-        logsTable.innerHTML = `
-            <tr>
-                <th>Họ tên</th>
-                <th>Loại</th>
-                <th>Lý do</th>
-                <th>Thời gian</th>
-            </tr>
-        ` + logs.map(l => `
-            <tr>
-                <td>${l.name}</td>
-                <td class="danger">${l.type}</td>
-                <td>${l.reason || ""}</td>
-                <td>${l.time}</td>
-            </tr>
-        `).join("");
+            try {
+                const res = await fetch(API_BASE + "/api/exam/start", { method: "POST" });
+                if (res.ok) {
+                    showToast("Kỳ thi đã bắt đầu thành công!");
+                    load();
+                }
+            } catch (err) {
+                showToast("Lỗi khi bắt đầu kỳ thi!", "error");
+            }
+        }
 
-    } catch (err) {
-        console.warn("⚠️ Không kết nối được server", err.message);
-    }
-}
+        /* ================= RESET EXAM ================= */
+        async function resetExam() {
+            if (!confirm("⚠️ Bạn chắc chắn muốn RESET toàn bộ kỳ thi?\n\nTất cả dữ liệu sẽ bị xóa và không thể khôi phục!")) return;
 
+            try {
+                const res = await fetch(API_BASE + "/api/exam/reset", { method: "POST" });
+                if (res.ok) {
+                    showToast("Đã reset kỳ thi thành công!");
+                    load();
+                }
+            } catch (err) {
+                showToast("Lỗi khi reset kỳ thi!", "error");
+            }
+        }
 
-/* ================= START EXAM ================= */
-async function startExam() {
-    if (!confirm("Bạn chắc chắn muốn BẮT ĐẦU kỳ thi?")) return;
+        /* ================= CLEAR LOGS ================= */
+        async function clearLogs() {
+            if (!confirm("Xóa toàn bộ nhật ký hệ thống?")) return;
 
-    await fetch(API_BASE + "/api/exam/start", { method: "POST" });
-    startBtn.disabled = true;
-    startBtn.innerText = "⏳ Kỳ thi đang diễn ra";
-}
+            try {
+                const res = await fetch(API_BASE + "/api/clear-logs", { method: "POST" });
+                if (res.ok) {
+                    showToast("Đã xóa nhật ký!");
+                    load();
+                }
+            } catch (err) {
+                showToast("Lỗi khi xóa nhật ký!", "error");
+            }
+        }
 
-/* ================= AUTO REFRESH ================= */
-load();
-setInterval(load, 2000);
-</script>
+        /* ================= TOAST ================= */
+        function showToast(message, type = "success") {
+            toast.textContent = message;
+            toast.className = `toast ${type === "error" ? "toast-error" : ""} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove("show");
+            }, 3000);
+        }
+
+        /* ================= HELPER ================= */
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /* ================= AUTO REFRESH ================= */
+        load();
+        setInterval(load, 3000); // Refresh mỗi 3 giây
+    </script>
 
 </body>
 </html>
