@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { sendExamResult } from "./discordWebhook.js";
+import sendExamResult from "./discordWebhook.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
