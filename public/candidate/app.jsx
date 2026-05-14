@@ -45,7 +45,7 @@ function App() {
     const [essayQuestion, setEssayQuestion] = useState("");
 
     const [violationReason, setViolationReason] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false); // THÊM: cờ đang nộp bài
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const essayQuestions = [
         `Bạn đang trong ca trực tuần tra bắn tốc độ tại tuyến đường chính.
@@ -66,7 +66,7 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
         // KHÔNG báo vi phạm nếu đang trong quá trình nộp bài
         if (isSubmitting) return;
         
-        // KHÔNG báo vi phạm nếu đã nộp bài xong
+        // KHÔNG báo vi phạm nếu đã nộp bài xong hoặc đã bị khóa
         if (stage === "SUBMITTED" || stage === "VIOLATION") return;
 
         fetch("/api/violation", {
@@ -86,62 +86,139 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
         setStage("VIOLATION");
     }
 
-    /* ================= ANTI CHEAT ================= */
+    /* ================= ANTI CHEAT - DÙNG CHUNG CHO CẢ TRẮC NGHIỆM VÀ TỰ LUẬN ================= */
     useEffect(() => {
-        // CHỈ chống gian lận khi đang làm bài HOẶC đang viết tự luận
+        // Chỉ chống gian lận khi đang làm bài trắc nghiệm hoặc tự luận
         if (stage !== "EXAM" && stage !== "ESSAY") return;
         
-        // Nếu đang nộp bài thì không kiểm tra
+        // Nếu đang nộp bài thì tạm thời không kiểm tra
         if (isSubmitting) return;
 
+        // 1. Phát hiện thoát cửa sổ (mất focus)
         const onBlur = () => violation("Thoát khỏi cửa sổ trình duyệt");
         
+        // 2. Phát hiện chuyển tab hoặc ẩn cửa sổ
         const onVis = () => {
             if (document.hidden && !isSubmitting) {
                 violation("Chuyển tab hoặc ẩn cửa sổ");
             }
         };
         
+        // 3. Phát hiện thoát fullscreen
         const onFs = () => {
-            // CHỈ báo vi phạm khi đang làm bài trắc nghiệm
-            // KHI ĐANG TỰ LUẬN: không báo vi phạm khi thoát fullscreen
-            if (stage === "EXAM" && !document.fullscreenElement && !isSubmitting) {
+            if (!document.fullscreenElement && !isSubmitting) {
                 violation("Thoát chế độ toàn màn hình");
             }
         };
 
+        // 4. Chặn chuột phải
         const onContextMenu = (e) => {
             e.preventDefault();
             violation("Click chuột phải");
         };
 
+        // 5. Chặn các phím tắt nguy hiểm
         const onKeyDown = (e) => {
+            // Chặn F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+S, Ctrl+P
             if (
                 e.key === "F12" ||
-                (e.ctrlKey && e.shiftKey && e.key === "I") ||
+                (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "J" || e.key === "C")) ||
                 (e.ctrlKey && e.key === "U") ||
                 (e.ctrlKey && e.key === "S") ||
-                (e.ctrlKey && e.key === "P")
+                (e.ctrlKey && e.key === "P") ||
+                (e.ctrlKey && e.key === "s") ||
+                (e.ctrlKey && e.key === "p")
             ) {
                 e.preventDefault();
-                violation("Cố gắng mở công cụ developer");
+                e.stopPropagation();
+                violation("Cố gắng mở công cụ developer hoặc lưu trang");
+                return false;
             }
         };
 
+        // 6. Chặn chọn văn bản (ngăn copy)
+        const onSelectStart = (e) => {
+            e.preventDefault();
+        };
+
+        // 7. Chặn kéo thả
+        const onDragStart = (e) => {
+            e.preventDefault();
+        };
+
+        // 8. Chặn copy/cut/paste
+        const onCopy = (e) => {
+            e.preventDefault();
+            violation("Cố gắng sao chép nội dung");
+        };
+
+        const onCut = (e) => {
+            e.preventDefault();
+            violation("Cố gắng cắt nội dung");
+        };
+
+        const onPaste = (e) => {
+            e.preventDefault();
+            violation("Cố gắng dán nội dung");
+        };
+
+        // 9. Phát hiện thay đổi kích thước cửa sổ đáng ngờ
+        let resizeTimer;
+        const onResize = () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                // Kiểm tra nếu cửa sổ quá nhỏ (có thể đang mở công cụ developer)
+                if (window.outerWidth - window.innerWidth > 200 || window.outerHeight - window.innerHeight > 200) {
+                    violation("Nghi ngờ mở công cụ developer");
+                }
+            }, 500);
+        };
+
+        // Đăng ký tất cả event listeners
         window.addEventListener("blur", onBlur);
         document.addEventListener("visibilitychange", onVis);
         document.addEventListener("fullscreenchange", onFs);
         document.addEventListener("contextmenu", onContextMenu);
-        document.addEventListener("keydown", onKeyDown);
+        document.addEventListener("keydown", onKeyDown, true); // Capture phase để chặn triệt để
+        document.addEventListener("selectstart", onSelectStart);
+        document.addEventListener("dragstart", onDragStart);
+        document.addEventListener("copy", onCopy);
+        document.addEventListener("cut", onCut);
+        document.addEventListener("paste", onPaste);
+        window.addEventListener("resize", onResize);
 
         return () => {
             window.removeEventListener("blur", onBlur);
             document.removeEventListener("visibilitychange", onVis);
             document.removeEventListener("fullscreenchange", onFs);
             document.removeEventListener("contextmenu", onContextMenu);
-            document.removeEventListener("keydown", onKeyDown);
+            document.removeEventListener("keydown", onKeyDown, true);
+            document.removeEventListener("selectstart", onSelectStart);
+            document.removeEventListener("dragstart", onDragStart);
+            document.removeEventListener("copy", onCopy);
+            document.removeEventListener("cut", onCut);
+            document.removeEventListener("paste", onPaste);
+            window.removeEventListener("resize", onResize);
+            clearTimeout(resizeTimer);
         };
-    }, [stage, isSubmitting]); // THÊM isSubmitting vào dependencies
+    }, [stage, isSubmitting]);
+
+    /* ================= YÊU CẦU FULLSCREEN KHI VÀO TỰ LUẬN ================= */
+    useEffect(() => {
+        if (stage === "ESSAY" && !isSubmitting) {
+            // Yêu cầu fullscreen lại khi vào phần tự luận
+            const requestFs = async () => {
+                try {
+                    if (!document.fullscreenElement) {
+                        await document.documentElement.requestFullscreen();
+                    }
+                } catch (err) {
+                    console.warn("Không thể bật fullscreen cho tự luận:", err);
+                }
+            };
+            requestFs();
+        }
+    }, [stage, isSubmitting]);
 
     /* ================= TIMER TRẮC NGHIỆM ================= */
     useEffect(() => {
@@ -245,7 +322,7 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
 
     /* ================= SUBMIT MC ================= */
     async function submitMC(finalAnswers) {
-        setIsSubmitting(true); // BẬT cờ đang nộp bài
+        setIsSubmitting(true);
         
         try {
             await fetch("/api/submit", {
@@ -257,21 +334,24 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 })
             });
 
-            // THOÁT FULLSCREEN TRƯỚC khi chuyển sang tự luận
+            // KHÔNG thoát fullscreen khi chuyển sang tự luận
+            // Giữ fullscreen để tiếp tục chống gian lận
+            // Chỉ đảm bảo đang ở fullscreen
             try {
-                if (document.fullscreenElement) {
-                    await document.exitFullscreen();
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
                 }
             } catch (err) {
-                console.warn("Không thể thoát fullscreen:", err);
+                console.warn("Không thể duy trì fullscreen:", err);
             }
 
             // Chọn câu tự luận ngẫu nhiên
             const q = essayQuestions[Math.floor(Math.random() * essayQuestions.length)];
             setEssayQuestion(q);
             setEssayTime(600);
+            setEssay(""); // Reset essay content
             setStage("ESSAY");
-            setIsSubmitting(false); // TẮT cờ đang nộp bài
+            setIsSubmitting(false);
         } catch (err) {
             console.error("Lỗi nộp trắc nghiệm:", err);
             alert("Có lỗi khi nộp bài. Vui lòng thử lại!");
@@ -281,7 +361,7 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
 
     /* ================= SUBMIT ESSAY ================= */
     async function submitEssay() {
-        setIsSubmitting(true); // BẬT cờ đang nộp bài
+        setIsSubmitting(true);
         
         try {
             await fetch("/api/submit-essay", {
@@ -294,7 +374,7 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 })
             });
 
-            // Thoát fullscreen nếu đang bật (an toàn)
+            // Thoát fullscreen an toàn sau khi nộp bài
             try {
                 if (document.fullscreenElement) {
                     await document.exitFullscreen();
@@ -304,7 +384,7 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
             }
 
             setStage("SUBMITTED");
-            setIsSubmitting(false); // TẮT cờ đang nộp bài
+            setIsSubmitting(false);
         } catch (err) {
             console.error("Lỗi nộp tự luận:", err);
             alert("Có lỗi khi nộp bài tự luận. Vui lòng thử lại!");
@@ -478,7 +558,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "20px",
-                background: "#020617"
+                background: "#020617",
+                userSelect: "none"
             }}>
                 <div style={{
                     background: "#1e293b",
@@ -497,11 +578,12 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                         marginBottom: "0.5rem",
                         background: "linear-gradient(135deg, #60a5fa, #a78bfa)",
                         WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent"
+                        WebkitTextFillColor: "transparent",
+                        userSelect: "none"
                     }}>
                         THI ONLINE FTO
                     </h1>
-                    <p style={{ color: "#94a3b8", marginBottom: "2rem" }}>
+                    <p style={{ color: "#94a3b8", marginBottom: "2rem", userSelect: "none" }}>
                         Nhập họ tên để bắt đầu bài thi
                     </p>
 
@@ -572,7 +654,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "20px",
-                background: "#020617"
+                background: "#020617",
+                userSelect: "none"
             }}>
                 <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>⏳</div>
                 <h2 style={{ color: "#e2e8f0", marginBottom: "0.5rem" }}>
@@ -593,7 +676,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "40px 20px",
-                background: "#020617"
+                background: "#020617",
+                userSelect: "none"
             }}>
                 <div style={{
                     width: "100%",
@@ -610,7 +694,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                         marginBottom: "1.5rem",
                         background: "linear-gradient(135deg, #60a5fa, #a78bfa)",
                         WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent"
+                        WebkitTextFillColor: "transparent",
+                        userSelect: "none"
                     }}>
                         📝 CÂU HỎI TỰ LUẬN
                     </h2>
@@ -639,7 +724,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                         marginBottom: "25px",
                         color: "#e2e8f0",
                         borderLeft: "4px solid #3b82f6",
-                        fontSize: "1.05rem"
+                        fontSize: "1.05rem",
+                        userSelect: "none"
                     }}>
                         {essayQuestion}
                     </div>
@@ -661,7 +747,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                             color: "#e2e8f0",
                             fontFamily: "'Segoe UI', Arial, sans-serif",
                             lineHeight: 1.6,
-                            boxSizing: "border-box"
+                            boxSizing: "border-box",
+                            userSelect: "text"
                         }}
                     />
 
@@ -701,7 +788,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "20px",
-                background: "#020617"
+                background: "#020617",
+                userSelect: "none"
             }}>
                 <div style={{ fontSize: "5rem", marginBottom: "1rem" }}>✅</div>
                 <h2 style={{
@@ -728,7 +816,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "20px",
-                background: "#020617"
+                background: "#020617",
+                userSelect: "none"
             }}>
                 <div style={{ fontSize: "5rem", marginBottom: "1rem" }}>❌</div>
                 <h2 style={{
@@ -754,7 +843,8 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
             flexDirection: "column",
             alignItems: "center",
             padding: "20px",
-            background: "#020617"
+            background: "#020617",
+            userSelect: "none"
         }}>
             <canvas 
                 ref={canvasRef} 
