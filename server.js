@@ -29,14 +29,22 @@ let examStarted = false;
 
 const activeCorrects = {};
 const activeAnswers = {};
-const activeScores = {};
+const activeScores = {};      // Lưu điểm RAW (số câu đúng)
 const activeQuestions = {};
 const finishedUsers = new Set();
 
 const logs = [];
 const results = [];
 
-/* ================= BỘ ĐỀ LÝ THUYẾT (100 CÂU - ĐÃ GỘP & LỌC TRÙNG) ================= */
+/* ================= CONSTANTS ================= */
+const TOTAL_QUESTIONS = 20;           // Tổng số câu hỏi
+const MAX_SCORE = 10;                 // Điểm tối đa
+const PASSING_SCORE = 8;              // Điểm đậu (trên thang 10)
+const PASSING_CORRECT = 16;           // Số câu đúng tối thiểu để đậu (16/20)
+const PATROL_MIN = 4;                 // Số câu nghiệp vụ tối thiểu
+const PATROL_MAX = 6;                 // Số câu nghiệp vụ tối đa
+
+/* ================= BỘ ĐỀ LÝ THUYẾT (115 CÂU) ================= */
 const QUESTION_BANK = [
   {
     q: "Theo quy định về phạm vi thẩm quyền, lực lượng nào có quyền hạn tuần tra trên tất cả các xa lộ, đường phố và có thể thực thi pháp luật ở bất kỳ nơi nào trong tiểu bang San Andreas?",
@@ -1442,7 +1450,7 @@ app.post("/api/violation", (req, res) => {
   res.json({ ok: true });
 });
 
-// ===== LẤY ĐỀ =====
+// ===== LẤY ĐỀ (20 CÂU) =====
 app.get("/api/questions", (req, res) => {
   if (!examStarted)
     return res.status(403).json({ error: "NOT_STARTED", message: "Kỳ thi chưa bắt đầu" });
@@ -1454,13 +1462,17 @@ app.get("/api/questions", (req, res) => {
   if (finishedUsers.has(name))
     return res.status(403).json({ error: "DONE", message: "Thí sinh đã hoàn thành bài thi" });
 
-  const patrolCount = Math.random() < 0.5 ? 2 : 3;
+  // Random số câu nghiệp vụ từ 4-6 câu
+  const patrolCount = Math.floor(Math.random() * (PATROL_MAX - PATROL_MIN + 1)) + PATROL_MIN;
+  const theoryCount = TOTAL_QUESTIONS - patrolCount;
 
+  // Chọn câu hỏi
   const picked = shuffleArray([
     ...shuffleArray(QUESTION_PATROL).slice(0, patrolCount),
-    ...shuffleArray(QUESTION_BANK).slice(0, 10 - patrolCount)
+    ...shuffleArray(QUESTION_BANK).slice(0, theoryCount)
   ]);
 
+  // Chuẩn bị câu hỏi (xáo trộn đáp án)
   const prepared = picked.map(q => {
     const mixed = shuffleArray(
       q.choices.map((c, i) => ({
@@ -1476,8 +1488,10 @@ app.get("/api/questions", (req, res) => {
     };
   });
 
+  // Lưu trạng thái
   activeCorrects[name] = prepared.map(q => q.correct);
   
+  // Lưu đề thi gốc (để gửi Discord sau)
   activeQuestions[name] = prepared.map(q => ({
     q: q.q,
     choices: q.choices,
@@ -1489,9 +1503,11 @@ app.get("/api/questions", (req, res) => {
     name,
     questionsCount: prepared.length,
     patrolCount,
+    theoryCount,
     time: new Date().toLocaleString("vi-VN")
   });
 
+  // Gửi đề thi (không kèm correct)
   res.json(
     prepared.map(q => ({
       q: q.q,
@@ -1500,7 +1516,7 @@ app.get("/api/questions", (req, res) => {
   );
 });
 
-// ===== NỘP TRẮC NGHIỆM =====
+// ===== NỘP TRẮC NGHIỆM (20 CÂU) =====
 app.post("/api/submit", (req, res) => {
   const { name, answers } = req.body;
   
@@ -1520,20 +1536,29 @@ app.post("/api/submit", (req, res) => {
     });
   }
 
-  let score = 0;
+  // Tính số câu đúng (RAW)
+  let correctCount = 0;
   answers.forEach((a, i) => {
-    if (a === corrects[i]) score++;
+    if (a === corrects[i]) correctCount++;
   });
 
+  // Quy đổi ra thang điểm 10
+  // Công thức: (số câu đúng / tổng số câu) * 10
+  const scoreOn10 = Math.round((correctCount / TOTAL_QUESTIONS) * MAX_SCORE * 10) / 10;
+
+  // Lưu trạng thái (lưu cả raw và scaled)
   activeAnswers[name] = answers;
-  activeScores[name] = score;
+  activeScores[name] = {
+    raw: correctCount,
+    scaled: scoreOn10
+  };
 
   res.json({ 
     ok: true, 
-    score,
-    total: corrects.length,
-    correct: score,
-    incorrect: corrects.length - score
+    correctCount,
+    totalQuestions: TOTAL_QUESTIONS,
+    score: scoreOn10,
+    maxScore: MAX_SCORE
   });
 });
 
@@ -1554,7 +1579,7 @@ app.post("/api/submit-essay", async (req, res) => {
 
   const answers = activeAnswers[name] || [];
   const corrects = activeCorrects[name] || [];
-  const score = activeScores[name] || 0;
+  const scoreData = activeScores[name] || { raw: 0, scaled: 0 };
   const questions = activeQuestions[name] || [];
   
   if (!corrects.length) {
@@ -1564,14 +1589,18 @@ app.post("/api/submit-essay", async (req, res) => {
     });
   }
 
-  const pass = score >= 8 ? "ĐẬU" : "RỚT";
+  // Điểm đậu: scaled >= 8 (tương đương 16/20 câu đúng)
+  const pass = scoreData.scaled >= PASSING_SCORE ? "ĐẬU" : "RỚT";
   const time = new Date().toLocaleString("vi-VN");
 
+  // Gửi kết quả lên Discord
   try {
     await sendExamResult({
       name,
-      score,
-      total: corrects.length,
+      score: scoreData.scaled,
+      correctCount: scoreData.raw,
+      total: TOTAL_QUESTIONS,
+      maxScore: MAX_SCORE,
       pass,
       questions,
       answers,
@@ -1581,10 +1610,12 @@ app.post("/api/submit-essay", async (req, res) => {
     console.error("❌ Lỗi gửi Discord:", err.message);
   }
 
+  // Lưu kết quả
   results.push({ 
     name, 
-    score, 
-    total: corrects.length,
+    score: scoreData.scaled,
+    correctCount: scoreData.raw,
+    total: TOTAL_QUESTIONS,
     result: pass, 
     time 
   });
@@ -1592,12 +1623,14 @@ app.post("/api/submit-essay", async (req, res) => {
   logs.push({
     type: "SUBMIT_ESSAY",
     name,
-    score,
-    total: corrects.length,
+    score: scoreData.scaled,
+    correctCount: scoreData.raw,
+    total: TOTAL_QUESTIONS,
     pass,
     time
   });
 
+  // Dọn dẹp
   finishedUsers.add(name);
   delete activeCorrects[name];
   delete activeAnswers[name];
@@ -1606,8 +1639,10 @@ app.post("/api/submit-essay", async (req, res) => {
 
   res.json({ 
     ok: true,
-    score,
-    total: corrects.length,
+    correctCount: scoreData.raw,
+    totalQuestions: TOTAL_QUESTIONS,
+    score: scoreData.scaled,
+    maxScore: MAX_SCORE,
     pass
   });
 });
@@ -1654,4 +1689,6 @@ app.listen(PORT, () => {
   console.log("📝 Dashboard: http://localhost:" + PORT + "/api/dashboard");
   console.log("📚 Tổng số câu hỏi lý thuyết: " + QUESTION_BANK.length);
   console.log("🚔 Tổng số câu hỏi nghiệp vụ: " + QUESTION_PATROL.length);
+  console.log("📋 Số câu mỗi đề thi: " + TOTAL_QUESTIONS);
+  console.log("🎯 Điểm đậu: " + PASSING_SCORE + "/" + MAX_SCORE + " (tương đương " + PASSING_CORRECT + "/" + TOTAL_QUESTIONS + " câu đúng)");
 });
