@@ -7,6 +7,7 @@ function drawWrap(ctx, text, x, y, maxW, lh) {
 
     for (let i = 0; i < words.length; i++) {
         const test = line + words[i] + " ";
+        
         const metrics = ctx.measureText(test);
         
         if (metrics.width > maxW && i > 0) {
@@ -581,7 +582,7 @@ Anh sẽ làm gì với tên cướp đã đầu hàng này? Anh có nổ súng 
                         WebkitTextFillColor: "transparent",
                         userSelect: "none"
                     }}>
-                        THI ONLINE FTO
+                        THI ONLINE
                     </h1>
                     <p style={{ color: "#94a3b8", marginBottom: "2rem", userSelect: "none" }}>
                         Nhập họ tên để bắt đầu bài thi
