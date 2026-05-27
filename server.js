@@ -43,7 +43,6 @@ const PASSING_SCORE = 8;              // Điểm đậu (trên thang 10)
 const PASSING_CORRECT = 16;           // Số câu đúng tối thiểu để đậu (16/20)
 const PATROL_MIN = 4;                 // Số câu nghiệp vụ tối thiểu
 const PATROL_MAX = 6;                 // Số câu nghiệp vụ tối đa
-
 /* ================= BỘ ĐỀ LÝ THUYẾT (200 CÂU) ================= */
 const QUESTION_BANK = [
   /* ========== PHẦN 1: PHẠM VI THẨM QUYỀN & CHUỖI MỆNH LỆNH (15 câu) ========== */
@@ -1077,33 +1076,21 @@ const QUESTION_PATROL = [
 // ===== GIÁM KHẢO START =====
 app.post("/api/exam/start", (req, res) => {
   examStarted = true;
-
-  logs.push({
-    type: "EXAM_START",
-    time: new Date().toLocaleString("vi-VN")
-  });
-
+  logs.push({ type: "EXAM_START", time: new Date().toLocaleString("vi-VN") });
   res.json({ ok: true });
 });
 
 // ===== GIÁM KHẢO RESET =====
 app.post("/api/exam/reset", (req, res) => {
   examStarted = false;
-  
   Object.keys(activeCorrects).forEach(key => delete activeCorrects[key]);
   Object.keys(activeAnswers).forEach(key => delete activeAnswers[key]);
   Object.keys(activeScores).forEach(key => delete activeScores[key]);
   Object.keys(activeQuestions).forEach(key => delete activeQuestions[key]);
   finishedUsers.clear();
-  
   logs.length = 0;
   results.length = 0;
-
-  logs.push({
-    type: "EXAM_RESET",
-    time: new Date().toLocaleString("vi-VN")
-  });
-
+  logs.push({ type: "EXAM_RESET", time: new Date().toLocaleString("vi-VN") });
   res.json({ ok: true });
 });
 
@@ -1115,49 +1102,22 @@ app.get("/api/exam/status", (req, res) => {
 // ===== THÍ SINH VÀO =====
 app.post("/api/join", (req, res) => {
   const { name } = req.body;
-  
-  if (!name) {
-    return res.status(400).json({ error: "Thiếu tên thí sinh" });
-  }
-
-  logs.push({
-    type: "JOIN",
-    name: name,
-    time: new Date().toLocaleString("vi-VN")
-  });
-
+  if (!name) return res.status(400).json({ error: "Thiếu tên thí sinh" });
+  logs.push({ type: "JOIN", name, time: new Date().toLocaleString("vi-VN") });
   res.json({ ok: true });
 });
 
 // ===== VI PHẠM =====
 app.post("/api/violation", (req, res) => {
   const { name, reason } = req.body;
-
-  if (!name || !reason) {
-    return res.status(400).json({ error: "Thiếu thông tin vi phạm" });
-  }
-
-  logs.push({
-    type: "VIOLATION",
-    name,
-    reason,
-    time: new Date().toLocaleString("vi-VN")
-  });
-
+  if (!name || !reason) return res.status(400).json({ error: "Thiếu thông tin vi phạm" });
+  logs.push({ type: "VIOLATION", name, reason, time: new Date().toLocaleString("vi-VN") });
   finishedUsers.add(name);
-  
   delete activeCorrects[name];
   delete activeAnswers[name];
   delete activeScores[name];
   delete activeQuestions[name];
-  
-  results.push({
-    name,
-    score: 0,
-    result: "VI PHẠM",
-    time: new Date().toLocaleString("vi-VN")
-  });
-
+  results.push({ name, score: 0, result: "VI PHẠM", time: new Date().toLocaleString("vi-VN") });
   res.json({ ok: true });
 });
 
@@ -1167,9 +1127,7 @@ app.get("/api/questions", (req, res) => {
     return res.status(403).json({ error: "NOT_STARTED", message: "Kỳ thi chưa bắt đầu" });
 
   const name = req.query.name;
-  if (!name)
-    return res.status(400).json({ error: "NO_NAME", message: "Thiếu tên thí sinh" });
-
+  if (!name) return res.status(400).json({ error: "NO_NAME", message: "Thiếu tên thí sinh" });
   if (finishedUsers.has(name))
     return res.status(403).json({ error: "DONE", message: "Thí sinh đã hoàn thành bài thi" });
 
@@ -1177,21 +1135,18 @@ app.get("/api/questions", (req, res) => {
   const patrolCount = Math.floor(Math.random() * (PATROL_MAX - PATROL_MIN + 1)) + PATROL_MIN;
   const theoryCount = TOTAL_QUESTIONS - patrolCount;
 
-  // Chọn câu hỏi
-  const picked = shuffleArray([
-    ...shuffleArray(QUESTION_PATROL).slice(0, patrolCount),
-    ...shuffleArray(QUESTION_BANK).slice(0, theoryCount)
-  ]);
+  // Chọn câu hỏi từ hai bộ đề riêng biệt
+  const selectedPatrol = shuffleArray([...QUESTION_PATROL]).slice(0, patrolCount);
+  const selectedTheory = shuffleArray([...QUESTION_BANK]).slice(0, theoryCount);
+
+  // Kết hợp và xáo trộn lần cuối
+  const picked = shuffleArray([...selectedPatrol, ...selectedTheory]);
 
   // Chuẩn bị câu hỏi (xáo trộn đáp án)
   const prepared = picked.map(q => {
     const mixed = shuffleArray(
-      q.choices.map((c, i) => ({
-        text: c,
-        ok: i === q.answer
-      }))
+      q.choices.map((c, i) => ({ text: c, ok: i === q.answer }))
     );
-
     return {
       q: q.q,
       choices: mixed.map(x => x.text),
@@ -1201,8 +1156,6 @@ app.get("/api/questions", (req, res) => {
 
   // Lưu trạng thái
   activeCorrects[name] = prepared.map(q => q.correct);
-  
-  // Lưu đề thi gốc (để gửi Discord sau)
   activeQuestions[name] = prepared.map(q => ({
     q: q.q,
     choices: q.choices,
@@ -1219,92 +1172,45 @@ app.get("/api/questions", (req, res) => {
   });
 
   // Gửi đề thi (không kèm correct)
-  res.json(
-    prepared.map(q => ({
-      q: q.q,
-      choices: q.choices
-    }))
-  );
+  res.json(prepared.map(q => ({ q: q.q, choices: q.choices })));
 });
 
-// ===== NỘP TRẮC NGHIỆM (20 CÂU) =====
+// ===== NỘP TRẮC NGHIỆM =====
 app.post("/api/submit", (req, res) => {
   const { name, answers } = req.body;
-  
-  if (!name || !answers) {
-    return res.status(400).json({ error: "Thiếu dữ liệu" });
-  }
+  if (!name || !answers) return res.status(400).json({ error: "Thiếu dữ liệu" });
 
   const corrects = activeCorrects[name];
+  if (!corrects) return res.status(400).json({ error: "NO_EXAM", message: "Không tìm thấy bài thi" });
+  if (answers.length !== corrects.length)
+    return res.status(400).json({ error: "INVALID_ANSWERS", message: `Số câu trả lời không khớp` });
 
-  if (!corrects)
-    return res.status(400).json({ error: "NO_EXAM", message: "Không tìm thấy bài thi của thí sinh" });
-
-  if (answers.length !== corrects.length) {
-    return res.status(400).json({ 
-      error: "INVALID_ANSWERS", 
-      message: `Số câu trả lời (${answers.length}) không khớp với số câu hỏi (${corrects.length})` 
-    });
-  }
-
-  // Tính số câu đúng (RAW)
   let correctCount = 0;
-  answers.forEach((a, i) => {
-    if (a === corrects[i]) correctCount++;
-  });
+  answers.forEach((a, i) => { if (a === corrects[i]) correctCount++; });
 
-  // Quy đổi ra thang điểm 10
-  // Công thức: (số câu đúng / tổng số câu) * 10
   const scoreOn10 = Math.round((correctCount / TOTAL_QUESTIONS) * MAX_SCORE * 10) / 10;
-
-  // Lưu trạng thái (lưu cả raw và scaled)
   activeAnswers[name] = answers;
-  activeScores[name] = {
-    raw: correctCount,
-    scaled: scoreOn10
-  };
+  activeScores[name] = { raw: correctCount, scaled: scoreOn10 };
 
-  res.json({ 
-    ok: true, 
-    correctCount,
-    totalQuestions: TOTAL_QUESTIONS,
-    score: scoreOn10,
-    maxScore: MAX_SCORE
-  });
+  res.json({ ok: true, correctCount, totalQuestions: TOTAL_QUESTIONS, score: scoreOn10, maxScore: MAX_SCORE });
 });
 
 // ===== NỘP TỰ LUẬN =====
 app.post("/api/submit-essay", async (req, res) => {
   const { name, essay } = req.body;
-  
-  if (!name) {
-    return res.status(400).json({ error: "Thiếu tên thí sinh" });
-  }
-
-  if (finishedUsers.has(name)) {
-    return res.status(400).json({ 
-      error: "ALREADY_FINISHED", 
-      message: "Thí sinh đã hoàn thành bài thi" 
-    });
-  }
+  if (!name) return res.status(400).json({ error: "Thiếu tên thí sinh" });
+  if (finishedUsers.has(name)) return res.status(400).json({ error: "ALREADY_FINISHED" });
 
   const answers = activeAnswers[name] || [];
   const corrects = activeCorrects[name] || [];
   const scoreData = activeScores[name] || { raw: 0, scaled: 0 };
   const questions = activeQuestions[name] || [];
-  
-  if (!corrects.length) {
-    return res.status(400).json({ 
-      error: "NO_EXAM", 
-      message: "Không tìm thấy bài thi của thí sinh" 
-    });
-  }
 
-  // Điểm đậu: scaled >= 8 (tương đương 16/20 câu đúng)
+  if (!corrects.length) return res.status(400).json({ error: "NO_EXAM" });
+
   const pass = scoreData.scaled >= PASSING_SCORE ? "ĐẬU" : "RỚT";
   const time = new Date().toLocaleString("vi-VN");
 
-  // Gửi kết quả lên Discord
   try {
     await sendExamResult({
       name,
@@ -1321,57 +1227,24 @@ app.post("/api/submit-essay", async (req, res) => {
     console.error("❌ Lỗi gửi Discord:", err.message);
   }
 
-  // Lưu kết quả
-  results.push({ 
-    name, 
-    score: scoreData.scaled,
-    correctCount: scoreData.raw,
-    total: TOTAL_QUESTIONS,
-    result: pass, 
-    time 
-  });
+  results.push({ name, score: scoreData.scaled, correctCount: scoreData.raw, total: TOTAL_QUESTIONS, result: pass, time });
+  logs.push({ type: "SUBMIT_ESSAY", name, score: scoreData.scaled, correctCount: scoreData.raw, total: TOTAL_QUESTIONS, pass, time });
 
-  logs.push({
-    type: "SUBMIT_ESSAY",
-    name,
-    score: scoreData.scaled,
-    correctCount: scoreData.raw,
-    total: TOTAL_QUESTIONS,
-    pass,
-    time
-  });
-
-  // Dọn dẹp
   finishedUsers.add(name);
   delete activeCorrects[name];
   delete activeAnswers[name];
   delete activeScores[name];
   delete activeQuestions[name];
 
-  res.json({ 
-    ok: true,
-    correctCount: scoreData.raw,
-    totalQuestions: TOTAL_QUESTIONS,
-    score: scoreData.scaled,
-    maxScore: MAX_SCORE,
-    pass
-  });
+  res.json({ ok: true, correctCount: scoreData.raw, totalQuestions: TOTAL_QUESTIONS, score: scoreData.scaled, maxScore: MAX_SCORE, pass });
 });
 
 // ===== LẤY KẾT QUẢ CÁ NHÂN =====
 app.get("/api/result", (req, res) => {
   const name = req.query.name;
-  
-  if (!name) {
-    return res.status(400).json({ error: "Thiếu tên thí sinh" });
-  }
-
+  if (!name) return res.status(400).json({ error: "Thiếu tên thí sinh" });
   const result = results.find(r => r.name === name);
-  
-  if (!result) {
-    return res.status(404).json({ error: "Không tìm thấy kết quả" });
-  }
-
+  if (!result) return res.status(404).json({ error: "Không tìm thấy kết quả" });
   res.json(result);
 });
 
@@ -1397,9 +1270,8 @@ app.post("/api/clear-logs", (req, res) => {
 /* ================= START SERVER ================= */
 app.listen(PORT, () => {
   console.log("✅ Server FTO Exam đang chạy tại http://localhost:" + PORT);
-  console.log("📝 Dashboard: http://localhost:" + PORT + "/api/dashboard");
-  console.log("📚 Tổng số câu hỏi lý thuyết: " + QUESTION_BANK.length);
-  console.log("🚔 Tổng số câu hỏi nghiệp vụ: " + QUESTION_PATROL.length);
+  console.log("📚 Tổng câu lý thuyết: " + QUESTION_BANK.length);
+  console.log("🚔 Tổng câu nghiệp vụ: " + QUESTION_PATROL.length);
   console.log("📋 Số câu mỗi đề thi: " + TOTAL_QUESTIONS);
   console.log("🎯 Điểm đậu: " + PASSING_SCORE + "/" + MAX_SCORE + " (tương đương " + PASSING_CORRECT + "/" + TOTAL_QUESTIONS + " câu đúng)");
 });
