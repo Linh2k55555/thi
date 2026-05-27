@@ -29,7 +29,7 @@ let examStarted = false;
 
 const activeCorrects = {};
 const activeAnswers = {};
-const activeScores = {};      // Lưu điểm RAW (số câu đúng)
+const activeScores = {};
 const activeQuestions = {};
 const finishedUsers = new Set();
 
@@ -37,13 +37,14 @@ const logs = [];
 const results = [];
 
 /* ================= CONSTANTS ================= */
-const TOTAL_QUESTIONS = 20;           // Tổng số câu hỏi
-const MAX_SCORE = 10;                 // Điểm tối đa
-const PASSING_SCORE = 8;              // Điểm đậu (trên thang 10)
-const PASSING_CORRECT = 16;           // Số câu đúng tối thiểu để đậu (16/20)
-const PATROL_MIN = 4;                 // Số câu nghiệp vụ tối thiểu
-const PATROL_MAX = 6;                 // Số câu nghiệp vụ tối đa
-/* ================= BỘ ĐỀ LÝ THUYẾT (200 CÂU) ================= */
+const TOTAL_QUESTIONS = 20;
+const MAX_SCORE = 10;
+const PASSING_SCORE = 8;
+const PASSING_CORRECT = 16;
+const PATROL_MIN = 4;
+const PATROL_MAX = 6;
+
+/* ================= BỘ ĐỀ LÝ THUYẾT (185 CÂU - ĐÃ LOẠI BỎ CÂU TRÙNG) ================= */
 const QUESTION_BANK = [
   /* ========== PHẦN 1: PHẠM VI THẨM QUYỀN & CHUỖI MỆNH LỆNH (15 câu) ========== */
   {
@@ -659,84 +660,7 @@ const QUESTION_BANK = [
     answer: 0
   },
 
-  /* ========== PHẦN 8: TUẦN TRA & KỸ NĂNG NGHIỆP VỤ (15 câu) ========== */
-  {
-    q: "Khi tiếp cận xe nghi vấn, tại sao cảnh sát được yêu cầu đứng ở vị trí cột B?",
-    choices: ["Nhìn biển số", "Tránh cửa xe và quan sát tốt bên trong", "Đối tượng thấy mặt", "Chuẩn bị gậy"],
-    answer: 1
-  },
-  {
-    q: "Những vật dụng nào là vật dụng nghi vấn cần chú ý khi tuần tra?",
-    choices: ["Sách báo", "Đồ ăn", "Vũ khí, vết máu, mặt nạ, găng tay, túi nhỏ", "Giấy tờ"],
-    answer: 2
-  },
-  {
-    q: "Trước khi xuống xe tiếp cận, hành động ưu tiên?",
-    choices: ["Kiểm tra súng", "Báo radio vị trí, biển số, và yêu cầu hỗ trợ nếu cần", "Ra lệnh giơ tay", "Chỉnh camera"],
-    answer: 1
-  },
-  {
-    q: "Mục đích hỏi \"Anh/Chị vừa đi từ đâu tới?\"",
-    choices: ["Xã giao", "Đối chiếu hướng di chuyển, phát hiện mâu thuẫn", "Ghi biên bản", "Kiểm tra trí nhớ"],
-    answer: 1
-  },
-  {
-    q: "Câu hỏi thăm dò lý do vội vã nào sau đây là chuyên nghiệp nhất?",
-    choices: ["Chạy như ăn cướp?", "Biết là vi phạm không?", "Có chuyện gì khiến anh/chị phải di chuyển nhanh trong khu vực này?", "Anh mang hàng cấm?"],
-    answer: 2
-  },
-  {
-    q: "Khi kiểm tra MDT, thông tin quan trọng nhất về một đối tượng là gì?",
-    choices: ["Lịch sử phạt nguội", "Tiền án bạo lực/vũ khí", "Ngày sinh", "Màu tóc"],
-    answer: 1
-  },
-  {
-    q: "Lời thoại chuyên nghiệp khi bạn muốn kiểm tra xe?",
-    choices: ["Tôi nghi anh là hung thủ", "Vì khu vực vừa xảy ra trọng án, tôi cần kiểm tra xe để đảm bảo an toàn. Anh có phiền không?", "Luật server cho phép", "Xuống xe ngay"],
-    answer: 1
-  },
-  {
-    q: "Nếu xe trùng mô tả hiện trường, bước tiếp theo là gì?",
-    choices: ["Hỏi chuyện kéo dài", "Gọi backup và thực hiện Felony Stop nếu cần", "Ghi biển số rồi bỏ đi", "Gọi người thân"],
-    answer: 1
-  },
-  {
-    q: "Tài xế liên tục nhìn gương chiếu hậu khi bạn bám theo, điều đó ám chỉ gì?",
-    choices: ["Chỉnh gương", "Lo lắng, có thể chuẩn bị bỏ chạy hoặc giấu đồ", "Lái cẩn thận", "Đợi người"],
-    answer: 1
-  },
-  {
-    q: "Nếu tài xế là nhân chứng đang hoảng loạn sau một vụ nổ súng, bạn nên làm gì?",
-    choices: ["Cho đi ngay", "Thu thập thông tin nhân chứng một cách nhẹ nhàng, trấn an họ", "Phạt cho chừa", "Yêu cầu về đồn sau"],
-    answer: 1
-  },
-  {
-    q: "Khi tuần tra một mình vào ban đêm ở khu vực vắng, bạn nên làm gì nếu thấy một xe đỗ bên đường không bật đèn?",
-    choices: ["Bỏ qua", "Tiếp cận một mình để kiểm tra", "Báo radio, quan sát từ xa, và gọi hỗ trợ trước khi tiếp cận", "Bắn cảnh cáo"],
-    answer: 2
-  },
-  {
-    q: "Bạn đang tuần tra và thấy một nhóm người tụ tập ở góc phố lúc 2 giờ sáng. Hành động phù hợp là gì?",
-    choices: ["Đuổi họ đi ngay", "Quan sát từ xa, báo cáo, và chỉ can thiệp nếu có dấu hiệu phạm pháp", "Gọi thêm 5 xe", "Bắt tất cả về đồn"],
-    answer: 1
-  },
-  {
-    q: "Khi tuần tra, bạn ngửi thấy mùi cần sa nồng nặc từ một chiếc xe đang chạy. Bạn có thể làm gì?",
-    choices: ["Dừng xe và khám xét ngay", "Dừng xe vì mùi cần sa là probable cause cho việc khám xét", "Bỏ qua vì không thấy", "Gọi K9"],
-    answer: 1
-  },
-  {
-    q: "Một người dân đến gặp bạn và báo có kẻ khả nghi đang lảng vảng quanh nhà họ. Bạn nên làm gì?",
-    choices: ["Bảo họ về nhà", "Ghi nhận thông tin, đến khu vực đó kiểm tra, và báo cáo", "Đuổi họ đi", "Gọi SWAT"],
-    answer: 1
-  },
-  {
-    q: "Khi dừng một xe vì lỗi đèn hậu hỏng, bạn nên tiếp cận như thế nào nếu trời mưa?",
-    choices: ["Chạy thật nhanh", "Tiếp cận bình thường nhưng chú ý đường trơn và tầm nhìn kém", "Không dừng xe khi trời mưa", "Yêu cầu tài xế ra ngoài"],
-    answer: 1
-  },
-
-  /* ========== PHẦN 9: CON TIN, CƯỚP, ĐỘT KÍCH (10 câu) ========== */
+  /* ========== PHẦN 8: CON TIN, CƯỚP, ĐỘT KÍCH (10 câu) ========== */
   {
     q: "Trong tình huống con tin, ưu tiên số một là gì?",
     choices: ["Tiêu diệt nghi phạm", "An toàn của con tin", "Đàm phán kéo dài", "Bảo vệ tài sản"],
@@ -788,7 +712,7 @@ const QUESTION_BANK = [
     answer: 1
   },
 
-  /* ========== PHẦN 10: ĐẠO ĐỨC, KỶ LUẬT, BODYCAM, KHÁC (20 câu) ========== */
+  /* ========== PHẦN 9: ĐẠO ĐỨC, KỶ LUẬT, BODYCAM, KHÁC (20 câu) ========== */
   {
     q: "Bodycam phải được bật khi nào?",
     choices: ["Cả ngày", "Trong mọi tương tác với công chúng khi làm nhiệm vụ", "Chỉ khi có đánh nhau", "Khi nào thích"],
@@ -890,7 +814,7 @@ const QUESTION_BANK = [
     answer: 1
   },
 
-  /* ========== PHẦN 11: BỔ SUNG CÂU HỎI KHÁC (20 câu) ========== */
+  /* ========== PHẦN 10: BỔ SUNG CÂU HỎI KHÁC (20 câu) ========== */
   {
     q: "Khi một sĩ quan bị thương trong lúc làm nhiệm vụ, đồng đội phải làm gì ngay lập tức?",
     choices: ["Tiếp tục truy đuổi", "Gọi 10-00, cố gắng sơ cứu và bảo vệ đồng đội", "Bỏ mặc", "Chạy đi tìm EMS"],
@@ -993,7 +917,7 @@ const QUESTION_BANK = [
   }
 ];
 
-/* ================= BỘ ĐỀ NGHIỆP VỤ (15 CÂU - TRÍCH TỪ PHẦN 8 & MỘT SỐ CÂU KHÁC) ================= */
+/* ================= BỘ ĐỀ NGHIỆP VỤ (15 CÂU - RIÊNG BIỆT) ================= */
 const QUESTION_PATROL = [
   {
     q: "Khi tiếp cận xe nghi vấn, tại sao cảnh sát được yêu cầu đứng ở vị trí cột B?",
@@ -1131,18 +1055,13 @@ app.get("/api/questions", (req, res) => {
   if (finishedUsers.has(name))
     return res.status(403).json({ error: "DONE", message: "Thí sinh đã hoàn thành bài thi" });
 
-  // Random số câu nghiệp vụ từ 4-6 câu
   const patrolCount = Math.floor(Math.random() * (PATROL_MAX - PATROL_MIN + 1)) + PATROL_MIN;
   const theoryCount = TOTAL_QUESTIONS - patrolCount;
 
-  // Chọn câu hỏi từ hai bộ đề riêng biệt
   const selectedPatrol = shuffleArray([...QUESTION_PATROL]).slice(0, patrolCount);
   const selectedTheory = shuffleArray([...QUESTION_BANK]).slice(0, theoryCount);
-
-  // Kết hợp và xáo trộn lần cuối
   const picked = shuffleArray([...selectedPatrol, ...selectedTheory]);
 
-  // Chuẩn bị câu hỏi (xáo trộn đáp án)
   const prepared = picked.map(q => {
     const mixed = shuffleArray(
       q.choices.map((c, i) => ({ text: c, ok: i === q.answer }))
@@ -1154,7 +1073,6 @@ app.get("/api/questions", (req, res) => {
     };
   });
 
-  // Lưu trạng thái
   activeCorrects[name] = prepared.map(q => q.correct);
   activeQuestions[name] = prepared.map(q => ({
     q: q.q,
@@ -1171,7 +1089,6 @@ app.get("/api/questions", (req, res) => {
     time: new Date().toLocaleString("vi-VN")
   });
 
-  // Gửi đề thi (không kèm correct)
   res.json(prepared.map(q => ({ q: q.q, choices: q.choices })));
 });
 
