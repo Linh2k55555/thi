@@ -44,7 +44,7 @@ const PASSING_CORRECT = 16;           // Số câu đúng tối thiểu để đ
 const PATROL_MIN = 4;                 // Số câu nghiệp vụ tối thiểu
 const PATROL_MAX = 6;                 // Số câu nghiệp vụ tối đa
 
-/* ================= BỘ ĐỀ LÝ THUYẾT (115 CÂU) ================= */
+/* ================= BỘ ĐỀ LÝ THUYẾT (190 CÂU) ================= */
 const QUESTION_BANK = [
   {
     q: "Theo quy định về phạm vi thẩm quyền, lực lượng nào có quyền hạn tuần tra trên tất cả các xa lộ, đường phố và có thể thực thi pháp luật ở bất kỳ nơi nào trong tiểu bang San Andreas?",
@@ -1320,7 +1320,305 @@ const QUESTION_BANK = [
       "Chỉ Air-1 được điều phối"
     ],
     answer: 1
+  },
+
+  /* ===== BỔ SUNG CÂU HỎI TỪ BẢNG LUẬT (ĐỦ TỔNG 200 CÂU) ===== */
+  {
+    q: "Theo Luật Giao thông, mã GT01 là lỗi gì?",
+    choices: ["Không đội mũ bảo hiểm khi đi xe máy", "Vượt đèn đỏ", "Đỗ xe sai quy định", "Lái xe ngược chiều"],
+    answer: 0
+  },
+  {
+    q: "Theo bảng luật, mức phạt của lỗi GT02 - Vượt đèn đỏ là bao nhiêu?",
+    choices: ["50", "150", "300", "500"],
+    answer: 0
+  },
+  {
+    q: "GT03 quy định lỗi lái xe quá tốc độ trong thành phố bắt đầu khi vượt quá giới hạn nào?",
+    choices: ["40 km/h", "50 km/h", "60 km/h", "80 km/h"],
+    answer: 2
+  },
+  {
+    q: "Theo GT04, hành vi lái xe khi say xỉn bị phạt mức nào?",
+    choices: ["50", "100", "150", "500"],
+    answer: 2
+  },
+  {
+    q: "GT05 là lỗi gì trong Luật Giao thông?",
+    choices: ["Lái xe không bằng lái", "Lái xe không đúng làn", "Không đội mũ bảo hiểm", "Phương tiện không đủ điều kiện"],
+    answer: 0
+  },
+  {
+    q: "Theo bảng luật, lỗi GT06 - Đỗ xe sai quy định có mức phạt là bao nhiêu?",
+    choices: ["100", "200", "300", "600"],
+    answer: 2
+  },
+  {
+    q: "GT07 quy định hành vi nào?",
+    choices: ["Gây tai nạn bỏ trốn", "Lái xe ngược chiều", "Vượt đèn đỏ", "Chạy xe bằng một bánh"],
+    answer: 0
+  },
+  {
+    q: "GT08 là lỗi gì?",
+    choices: ["Không chấp hành hiệu lệnh", "Lái xe không đúng làn đường", "Lấn chiếm lòng lề đường", "Đỗ xe sai quy định"],
+    answer: 1
+  },
+  {
+    q: "Theo bảng luật, GT09 - Không chấp hành hiệu lệnh chỉ áp dụng khi nào?",
+    choices: ["Khi phạm luật hình sự", "Khi đi quá tốc độ", "Khi xe hết đăng kiểm", "Khi đi sai làn"],
+    answer: 0
+  },
+  {
+    q: "GT10 trong bảng luật là lỗi gì?",
+    choices: ["Lái xe không an toàn", "Lái xe không bằng lái", "Lái xe ngược chiều", "Lái xe say xỉn"],
+    answer: 0
+  },
+  {
+    q: "GT11 quy định lỗi nào?",
+    choices: ["Phương tiện không đủ điều kiện lưu thông", "Lấn chiếm lòng lề đường", "Đỗ xe sai quy định", "Không đội mũ bảo hiểm"],
+    answer: 0
+  },
+  {
+    q: "Theo GT12, hành vi chạy xe bằng một bánh bị phạt bao nhiêu?",
+    choices: ["100", "150", "200", "500"],
+    answer: 2
+  },
+  {
+    q: "GT13 là lỗi gì?",
+    choices: ["Lái xe gây tai nạn", "Gây tai nạn bỏ trốn", "Vượt đèn đỏ", "Lái xe không an toàn"],
+    answer: 0
+  },
+  {
+    q: "GT14 quy định lỗi lái xe ngược chiều có mức phạt bao nhiêu?",
+    choices: ["100", "150", "300", "600"],
+    answer: 1
+  },
+  {
+    q: "GT15 là hành vi nào?",
+    choices: ["Lấn chiếm lòng lề đường", "Không chấp hành hiệu lệnh", "Lái xe quá tốc độ", "Không đăng kiểm"],
+    answer: 0
+  },
+  {
+    q: "HS01 trong Luật Hình sự là hành vi nào?",
+    choices: ["Tàng trữ vũ khí trái phép", "Buôn bán vũ khí", "Cướp tài sản", "Bắt cóc"],
+    answer: 0
+  },
+  {
+    q: "Theo HS01, nếu không có giấy phép hoặc có trên 20 viên đạn thì xử lý thế nào?",
+    choices: ["Không xử lý", "Ghép thêm một lần tội", "Chỉ cảnh cáo", "Chỉ tịch thu xe"],
+    answer: 1
+  },
+  {
+    q: "HS02 quy định hành vi nào?",
+    choices: ["Buôn bán vũ khí", "Tàng trữ chất cấm", "Cướp ngân hàng", "Giả dạng sĩ quan"],
+    answer: 0
+  },
+  {
+    q: "HS03 là tội danh gì?",
+    choices: ["Cướp tài sản", "Cướp tạp hóa", "Cướp ngân hàng", "Lừa đảo nghiêm trọng"],
+    answer: 0
+  },
+  {
+    q: "Theo bảng luật, HS04 là hành vi nào?",
+    choices: ["Bắt cóc", "Phá hoại tài sản", "Gây rối trật tự công cộng", "Không hợp tác khi bắt giữ"],
+    answer: 0
+  },
+  {
+    q: "HS05 quy định tội danh nào?",
+    choices: ["Phá hoại tài sản", "Gây tai nạn bỏ trốn", "Cản trở người thi hành công vụ", "Xúc phạm sĩ quan hòa bình"],
+    answer: 0
+  },
+  {
+    q: "HS06 là hành vi nào?",
+    choices: ["Gây rối trật tự công cộng", "Gây mất trật tự nơi công cộng", "Tụ tập đông người trái phép", "Không xuất trình giấy tờ"],
+    answer: 0
+  },
+  {
+    q: "HS07 quy định hành vi nào khi bị bắt giữ?",
+    choices: ["Chống người thi hành công vụ", "Không đội mũ bảo hiểm", "Kinh doanh không giấy phép", "Lái xe không an toàn"],
+    answer: 0
+  },
+  {
+    q: "HS08 trong bảng luật là tội danh gì?",
+    choices: ["Trộm cắp / Lừa đảo", "Buôn lậu", "Hối lộ sĩ quan", "Cố ý phá hoại tài sản chính phủ"],
+    answer: 0
+  },
+  {
+    q: "HS09 - Lẩn tránh liều lĩnh được mô tả đúng nhất là gì?",
+    choices: ["Bỏ chạy gây nguy hiểm cho người đi đường", "Đỗ xe sai quy định", "Đi sai làn đường", "Không đội mũ bảo hiểm"],
+    answer: 0
+  },
+  {
+    q: "HS10 là hành vi nào?",
+    choices: ["Buôn lậu", "Buôn bán vũ khí", "Buôn bán cần sa", "Rửa tiền"],
+    answer: 0
+  },
+  {
+    q: "HS11 quy định hành vi khai thác ở đâu?",
+    choices: ["Bãi cấm", "Bãi xe công cộng", "Bệnh viện", "Trụ sở cảnh sát"],
+    answer: 0
+  },
+  {
+    q: "HS12 là tội danh gì?",
+    choices: ["Cản trở người thi hành công vụ", "Chống người thi hành công vụ khi bị bắt", "Hối lộ sĩ quan", "Giả dạng sĩ quan"],
+    answer: 0
+  },
+  {
+    q: "HS13 trong bảng luật là hành vi nào?",
+    choices: ["Quấy rối tình dục", "Gây rối trật tự công cộng", "Xúc phạm sĩ quan", "Khiêu khích vô lý"],
+    answer: 0
+  },
+  {
+    q: "HS14 quy định hành vi nào đối với tài sản chính phủ?",
+    choices: ["Cố ý phá hoại tài sản chính phủ", "Trộm cắp tài sản", "Rửa tiền", "Buôn lậu"],
+    answer: 0
+  },
+  {
+    q: "HS15 được áp dụng khi nghi phạm làm gì?",
+    choices: ["Phi tang đồ phạm pháp", "Không đội mũ bảo hiểm", "Chạy xe bằng một bánh", "Kinh doanh không giấy phép"],
+    answer: 0
+  },
+  {
+    q: "HS16 là hành vi nào?",
+    choices: ["Xúc phạm sĩ quan hòa bình", "Hối lộ sĩ quan", "Không hợp tác khi bắt giữ", "Bất tuân hiệu lệnh"],
+    answer: 0
+  },
+  {
+    q: "HS17 quy định tội danh nào?",
+    choices: ["Không hợp tác khi bắt giữ", "Cản trở người thi hành công vụ", "Giả dạng sĩ quan", "Đào tẩu khỏi trại giam"],
+    answer: 0
+  },
+  {
+    q: "HS18 trong bảng luật là hành vi gì?",
+    choices: ["Hối lộ sĩ quan", "Xúc phạm sĩ quan", "Tấn công cơ quan công quyền", "Gián điệp/Phản quốc"],
+    answer: 0
+  },
+  {
+    q: "HS19 quy định hành vi nào?",
+    choices: ["Tổ chức đua xe bất hợp pháp", "Lái xe quá tốc độ", "Lái xe không an toàn", "Lái xe ngược chiều"],
+    answer: 0
+  },
+  {
+    q: "HS20 là hành vi nào trong bảng luật?",
+    choices: ["Khiêu khích vô lý", "Gây mất trật tự nơi công cộng", "Lăng mạ nơi công cộng", "Tụ tập đông người trái phép"],
+    answer: 0
+  },
+  {
+    q: "Theo HS21, công cụ quay bất hợp pháp có đặc điểm nào?",
+    choices: ["Bodycam không to, không rõ hoặc không đủ điều kiện", "Camera công khai tại hiện trường", "Bodycam đúng chuẩn", "Camera trụ sở"],
+    answer: 0
+  },
+  {
+    q: "HS22 quy định hành vi nào?",
+    choices: ["Bất tuân hiệu lệnh", "Không xuất trình giấy tờ", "Không chấp hành hiệu lệnh giao thông", "Đỗ xe sai quy định"],
+    answer: 0
+  },
+  {
+    q: "HS23 trong bảng luật là hành vi gì?",
+    choices: ["Trồng - khai thác cần sa", "Tàng trữ vũ khí", "Buôn bán vũ khí", "Cướp tài sản"],
+    answer: 0
+  },
+  {
+    q: "HS24 quy định tội danh nào?",
+    choices: ["Buôn bán cần sa", "Tàng trữ cần sa quá số lượng", "Tàng trữ chất cấm", "Buôn lậu"],
+    answer: 0
+  },
+  {
+    q: "HS25 là tội danh gì?",
+    choices: ["Cướp tạp hóa", "Cướp ngân hàng", "Cướp tài sản", "Cướp tù"],
+    answer: 0
+  },
+  {
+    q: "HS26 trong bảng luật là hành vi nào?",
+    choices: ["Tàng trữ chất cấm", "Buôn bán ma túy quy mô lớn", "Trồng cần sa", "Rửa tiền"],
+    answer: 0
+  },
+  {
+    q: "Theo HS27, tàng trữ cần sa quá số lượng được hiểu là quá bao nhiêu cây?",
+    choices: ["Quá 1 cây", "Quá 2 cây", "Quá 5 cây", "Quá 10 cây"],
+    answer: 0
+  },
+  {
+    q: "HC01 trong Luật Hành chính là hành vi nào?",
+    choices: ["Không xuất trình giấy tờ", "Kinh doanh không giấy phép", "Gây mất trật tự nơi công cộng", "Tiếp tay cho tội phạm"],
+    answer: 0
+  },
+  {
+    q: "HC02 quy định hành vi nào?",
+    choices: ["Kinh doanh không giấy phép", "Tụ tập đông người trái phép", "Lăng mạ nơi công cộng", "Xe không đăng kiểm"],
+    answer: 0
+  },
+  {
+    q: "HC03 là hành vi gì?",
+    choices: ["Tụ tập đông người trái phép", "Gây mất trật tự nơi công cộng", "Tiếp tay cho tội phạm", "Không xuất trình giấy tờ"],
+    answer: 0
+  },
+  {
+    q: "HC04 quy định hành vi nào?",
+    choices: ["Gây mất trật tự nơi công cộng", "Gây rối trật tự công cộng", "Chống người thi hành công vụ", "Xúc phạm sĩ quan hòa bình"],
+    answer: 0
+  },
+  {
+    q: "HC05 là lỗi gì trong bảng luật?",
+    choices: ["Lăng mạ, xúc phạm người khác nơi công cộng", "Làm hành động thiếu văn minh nơi công cộng", "Không xuất trình giấy tờ", "Bất tuân hiệu lệnh"],
+    answer: 0
+  },
+  {
+    q: "HC06 quy định hành vi nào?",
+    choices: ["Làm hành động thiếu văn minh nơi công cộng", "Gây rối trật tự công cộng", "Quấy rối tình dục", "Khiêu khích vô lý"],
+    answer: 0
+  },
+  {
+    q: "HC07 trong bảng luật liên quan đến lỗi nào của xe?",
+    choices: ["Xe không đăng kiểm theo quy định", "Xe chạy quá tốc độ", "Xe đỗ sai quy định", "Xe không đúng làn đường"],
+    answer: 0
+  },
+  {
+    q: "HC08 quy định hành vi nào?",
+    choices: ["Tiếp tay cho tội phạm", "Không hợp tác khi bắt giữ", "Hối lộ sĩ quan", "Cản trở người thi hành công vụ"],
+    answer: 0
+  },
+  {
+    q: "TT01 trong nhóm trọng tội là tội danh nào?",
+    choices: ["Giết người có chủ đích", "Cướp ngân hàng", "Tấn công cơ quan công quyền", "Khủng bố"],
+    answer: 0
+  },
+  {
+    q: "TT02 quy định trọng tội nào?",
+    choices: ["Cướp ngân hàng", "Cướp tài sản", "Cướp tạp hóa", "Đào tẩu khỏi trại giam"],
+    answer: 0
+  },
+  {
+    q: "TT03 là hành vi nào?",
+    choices: ["Tấn công cơ quan công quyền", "Mưu sát nhân viên chính phủ", "Giả dạng sĩ quan", "Cố ý phá hoại tài sản chính phủ"],
+    answer: 0
+  },
+  {
+    q: "TT04 trong bảng luật là trọng tội gì?",
+    choices: ["Khủng bố, đe dọa an ninh", "Rửa tiền", "Buôn lậu", "Tổ chức đua xe bất hợp pháp"],
+    answer: 0
+  },
+  {
+    q: "TT05 quy định tội bắt cóc đối tượng nào?",
+    choices: ["Người có chức vụ", "Người đi đường bất kỳ", "Tài xế taxi", "Người vi phạm giao thông"],
+    answer: 0
+  },
+  {
+    q: "TT06 là trọng tội nào?",
+    choices: ["Buôn bán vũ khí quy mô lớn", "Tàng trữ vũ khí trái phép", "Buôn bán vũ khí số lượng nhỏ", "Hối lộ sĩ quan"],
+    answer: 0
+  },
+  {
+    q: "TT07 trong bảng luật là trọng tội gì?",
+    choices: ["Buôn bán ma túy quy mô lớn", "Tàng trữ chất cấm", "Trồng cần sa", "Buôn bán cần sa"],
+    answer: 0
   }
+
+  {
+    q: "TT08 trong nhóm trọng tội là hành vi nào?",
+    choices: ["Rửa tiền", "Buôn lậu", "Hối lộ sĩ quan", "Lừa đảo thông thường"],
+    answer: 0
+  },
 ];
 
 /* ================= BỘ ĐỀ NGHIỆP VỤ (10 CÂU) ================= */
