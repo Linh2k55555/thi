@@ -1608,12 +1608,11 @@ const QUESTION_BANK = [
     choices: ["Buôn bán vũ khí quy mô lớn", "Tàng trữ vũ khí trái phép", "Buôn bán vũ khí số lượng nhỏ", "Hối lộ sĩ quan"],
     answer: 0
   },
-  {
+{
     q: "TT07 trong bảng luật là trọng tội gì?",
     choices: ["Buôn bán ma túy quy mô lớn", "Tàng trữ chất cấm", "Trồng cần sa", "Buôn bán cần sa"],
     answer: 0
-  }
-
+  },
   {
     q: "TT08 trong nhóm trọng tội là hành vi nào?",
     choices: ["Rửa tiền", "Buôn lậu", "Hối lộ sĩ quan", "Lừa đảo thông thường"],
