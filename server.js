@@ -1092,42 +1092,84 @@ app.get("/api/questions", (req, res) => {
   res.json(prepared.map(q => ({ q: q.q, choices: q.choices })));
 });
 
-// ===== NỘP TRẮC NGHIỆM =====
+// ===== NỘP TRẮC NGHIỆM (20 CÂU) =====
 app.post("/api/submit", (req, res) => {
   const { name, answers } = req.body;
-  if (!name || !answers) return res.status(400).json({ error: "Thiếu dữ liệu" });
+
+  if (!name || !answers) {
+    return res.status(400).json({ error: "Thiếu dữ liệu" });
+  }
 
   const corrects = activeCorrects[name];
-  if (!corrects) return res.status(400).json({ error: "NO_EXAM", message: "Không tìm thấy bài thi" });
-  if (answers.length !== corrects.length)
-    return res.status(400).json({ error: "INVALID_ANSWERS", message: `Số câu trả lời không khớp` });
 
+  if (!corrects)
+    return res.status(400).json({ error: "NO_EXAM", message: "Không tìm thấy bài thi của thí sinh" });
+
+  if (answers.length !== corrects.length) {
+    return res.status(400).json({ 
+      error: "INVALID_ANSWERS", 
+      message: `Số câu trả lời (${answers.length}) không khớp với số câu hỏi (${corrects.length})` 
+    });
+  }
+
+  // Tính số câu đúng (RAW)
   let correctCount = 0;
-  answers.forEach((a, i) => { if (a === corrects[i]) correctCount++; });
+  answers.forEach((a, i) => {
+    if (a === corrects[i]) correctCount++;
+  });
 
+  // Quy đổi ra thang điểm 10
+  // Công thức: (số câu đúng / tổng số câu) * 10
   const scoreOn10 = Math.round((correctCount / TOTAL_QUESTIONS) * MAX_SCORE * 10) / 10;
-  activeAnswers[name] = answers;
-  activeScores[name] = { raw: correctCount, scaled: scoreOn10 };
 
-  res.json({ ok: true, correctCount, totalQuestions: TOTAL_QUESTIONS, score: scoreOn10, maxScore: MAX_SCORE });
+  // Lưu trạng thái (lưu cả raw và scaled)
+  activeAnswers[name] = answers;
+  activeScores[name] = {
+    raw: correctCount,
+    scaled: scoreOn10
+  };
+
+  res.json({ 
+    ok: true, 
+    correctCount,
+    totalQuestions: TOTAL_QUESTIONS,
+    score: scoreOn10,
+    maxScore: MAX_SCORE
+  });
 });
 
 // ===== NỘP TỰ LUẬN =====
 app.post("/api/submit-essay", async (req, res) => {
   const { name, essay } = req.body;
-  if (!name) return res.status(400).json({ error: "Thiếu tên thí sinh" });
-  if (finishedUsers.has(name)) return res.status(400).json({ error: "ALREADY_FINISHED" });
+
+  if (!name) {
+    return res.status(400).json({ error: "Thiếu tên thí sinh" });
+  }
+
+  if (finishedUsers.has(name)) {
+    return res.status(400).json({ 
+      error: "ALREADY_FINISHED", 
+      message: "Thí sinh đã hoàn thành bài thi" 
+    });
+  }
 
   const answers = activeAnswers[name] || [];
   const corrects = activeCorrects[name] || [];
   const scoreData = activeScores[name] || { raw: 0, scaled: 0 };
   const questions = activeQuestions[name] || [];
 
-  if (!corrects.length) return res.status(400).json({ error: "NO_EXAM" });
+  if (!corrects.length) {
+    return res.status(400).json({ 
+      error: "NO_EXAM", 
+      message: "Không tìm thấy bài thi của thí sinh" 
+    });
+  }
 
+  // Điểm đậu: scaled >= 8 (tương đương 16/20 câu đúng)
   const pass = scoreData.scaled >= PASSING_SCORE ? "ĐẬU" : "RỚT";
   const time = new Date().toLocaleString("vi-VN");
 
+  // Gửi kết quả lên Discord
   try {
     await sendExamResult({
       name,
@@ -1144,24 +1186,57 @@ app.post("/api/submit-essay", async (req, res) => {
     console.error("❌ Lỗi gửi Discord:", err.message);
   }
 
-  results.push({ name, score: scoreData.scaled, correctCount: scoreData.raw, total: TOTAL_QUESTIONS, result: pass, time });
-  logs.push({ type: "SUBMIT_ESSAY", name, score: scoreData.scaled, correctCount: scoreData.raw, total: TOTAL_QUESTIONS, pass, time });
+  // Lưu kết quả
+  results.push({ 
+    name, 
+    score: scoreData.scaled,
+    correctCount: scoreData.raw,
+    total: TOTAL_QUESTIONS,
+    result: pass, 
+    time 
+  });
 
+  logs.push({
+    type: "SUBMIT_ESSAY",
+    name,
+    score: scoreData.scaled,
+    correctCount: scoreData.raw,
+    total: TOTAL_QUESTIONS,
+    pass,
+    time
+  });
+
+  // Dọn dẹp
   finishedUsers.add(name);
   delete activeCorrects[name];
   delete activeAnswers[name];
   delete activeScores[name];
   delete activeQuestions[name];
 
-  res.json({ ok: true, correctCount: scoreData.raw, totalQuestions: TOTAL_QUESTIONS, score: scoreData.scaled, maxScore: MAX_SCORE, pass });
+  res.json({ 
+    ok: true,
+    correctCount: scoreData.raw,
+    totalQuestions: TOTAL_QUESTIONS,
+    score: scoreData.scaled,
+    maxScore: MAX_SCORE,
+    pass
+  });
 });
 
 // ===== LẤY KẾT QUẢ CÁ NHÂN =====
 app.get("/api/result", (req, res) => {
   const name = req.query.name;
-  if (!name) return res.status(400).json({ error: "Thiếu tên thí sinh" });
+
+  if (!name) {
+    return res.status(400).json({ error: "Thiếu tên thí sinh" });
+  }
+
   const result = results.find(r => r.name === name);
-  if (!result) return res.status(404).json({ error: "Không tìm thấy kết quả" });
+
+  if (!result) {
+    return res.status(404).json({ error: "Không tìm thấy kết quả" });
+  }
+
   res.json(result);
 });
 
@@ -1187,8 +1262,9 @@ app.post("/api/clear-logs", (req, res) => {
 /* ================= START SERVER ================= */
 app.listen(PORT, () => {
   console.log("✅ Server FTO Exam đang chạy tại http://localhost:" + PORT);
-  console.log("📚 Tổng câu lý thuyết: " + QUESTION_BANK.length);
-  console.log("🚔 Tổng câu nghiệp vụ: " + QUESTION_PATROL.length);
+  console.log("📝 Dashboard: http://localhost:" + PORT + "/api/dashboard");
+  console.log("📚 Tổng số câu hỏi lý thuyết: " + QUESTION_BANK.length);
+  console.log("🚔 Tổng số câu hỏi nghiệp vụ: " + QUESTION_PATROL.length);
   console.log("📋 Số câu mỗi đề thi: " + TOTAL_QUESTIONS);
   console.log("🎯 Điểm đậu: " + PASSING_SCORE + "/" + MAX_SCORE + " (tương đương " + PASSING_CORRECT + "/" + TOTAL_QUESTIONS + " câu đúng)");
 });
